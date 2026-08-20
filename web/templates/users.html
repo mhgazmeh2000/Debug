@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block title %}مدیریت کاربران{% endblock %}
+
+{% block content %}
+<main class="users-page">
+  <header class="users-header">
+    <div class="users-header-copy">
+      <h1>مدیریت کاربران</h1>
+      <p>مدیریت نقش‌ها، تأیید حساب، سطح دسترسی دفاتر و ماژول‌ها فقط برای ادمین در دسترس است.</p>
+    </div>
+    <div class="users-header-actions">
+      <button class="btn btn-ghost" type="button" onclick="openAccessHelpModal()">ⓘ راهنمای نقش‌ها و دسترسی‌ها</button>
+      <button class="btn btn-green" type="button" onclick="openUserAddModal()">➕ افزودن کاربر</button>
+      <button class="btn btn-cyan" type="button" onclick="loadUsers()">↻ بارگذاری کاربران</button>
+      <a class="btn btn-cyan" href="{{ url_for('dashboard.index') }}">← بازگشت به داشبورد</a>
+    </div>
+  </header>
+
+  <section class="users-card">
+    <div class="users-toolbar">
+      <span id="users-status" class="users-status">در حال بارگذاری...</span>
+    </div>
+
+    <div class="users-table-wrap">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>نام کاربری</th>
+            <th>ایمیل</th>
+            <th>نقش</th>
+            <th>تأیید</th>
+            <th>دسترسی</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr>
+            <td colspan="6" class="users-empty-cell">
+              <div class="loading-spinner">در حال دریافت کاربران...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div class="modal-overlay" id="access-help-modal" style="display:none" onclick="if (event.target === this) closeAccessHelpModal()">
+  <div class="modal users-modal access-help-modal" onclick="event.stopPropagation()">
+    <div class="users-modal-header">
+      <div>
+        <h3>ⓘ راهنمای نقش‌ها و دسترسی‌ها</h3>
+        <p class="users-modal-hint">دسترسی نهایی هر کاربر از ترکیب نقش، ماژول و دفتر مجاز تعیین می‌شود.</p>
+      </div>
+    </div>
+    <div class="users-modal-body access-help-body">
+      <section class="access-help-section">
+        <h4>نقش‌ها</h4>
+        <div class="access-help-grid">
+          <article><strong>admin</strong><p>دسترسی کامل به همهٔ دفاتر، ماژول‌ها و عملیات مدیریتی دارد. تنظیم دفاتر و ماژول‌ها برای admin اعمال نمی‌شود.</p></article>
+          <article><strong>manager</strong><p>فقط به ماژول‌ها و دفاتری دسترسی دارد که برای او انتخاب شده‌اند و می‌تواند عملیات مجاز همان بخش‌ها را انجام دهد.</p></article>
+          <article><strong>viewer</strong><p>برای مشاهدهٔ اطلاعات استفاده می‌شود و مانند manager فقط در محدودهٔ ماژول‌ها و دفاتر انتخاب‌شده فعالیت می‌کند.</p></article>
+        </div>
+      </section>
+      <section class="access-help-section">
+        <h4>ماژول‌های مجاز</h4>
+        <ul>
+          <li><strong>پرینترها:</strong> مشاهده و مدیریت دستگاه‌ها، گروه‌بندی و عملیات مرتبط با پرینتر.</li>
+          <li><strong>رویدادها و لاگ‌ها:</strong> مشاهدهٔ تاریخچهٔ چاپ، هشدارها و رویدادهای دستگاه.</li>
+          <li><strong>گزارش‌ها و خروجی:</strong> دریافت خروجی Excel، CSV و JSON.</li>
+          <li><strong>مدیریت کاربران:</strong> مشاهده و مدیریت کاربران، نقش‌ها و سطح دسترسی آن‌ها.</li>
+        </ul>
+      </section>
+      <section class="access-help-section">
+        <h4>دفاتر مجاز</h4>
+        <p>دفاتر بر اساس زیرشبکه و گروه‌های سفارشی تعریف می‌شوند. انتخاب یک دفتر، دسترسی کاربر را به پرینترهای همان دفتر محدود می‌کند.</p>
+        <ul>
+          <li><strong>خالی:</strong> همهٔ دفاتر مجاز هستند.</li>
+          <li><strong>انتخاب چند دفتر:</strong> فقط پرینترهای همان دفاتر نمایش داده می‌شوند.</li>
+          <li><strong>گروه سفارشی:</strong> پرینترهایی که به آن گروه اختصاص داده شده‌اند قابل دسترسی خواهند بود.</li>
+        </ul>
+      </section>
+      <div class="auth-alert warning access-help-note">برای محدودسازی واقعی، نقش کاربر باید manager یا viewer باشد و حداقل یک ماژول و دفتر انتخاب شود. admin همیشه دسترسی کامل دارد.</div>
+    </div>
+    <div class="form-actions users-modal-actions">
+      <button class="btn btn-ghost" type="button" onclick="closeAccessHelpModal()">بستن</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="user-add-modal" style="display:none" onclick="if (event.target === this) closeUserAddModal()">
+  <div class="modal users-modal" onclick="event.stopPropagation()">
+    <div class="users-modal-header">
+      <div>
+        <h3>➕ افزودن کاربر جدید</h3>
+        <p class="users-modal-hint">نام کاربری باید انگلیسی باشد. پس از ایجاد حساب، ایمیل تنظیم رمز برای کاربر ارسال می‌شود.</p>
+      </div>
+    </div>
+
+    <div class="users-modal-body">
+      <div class="users-form-grid">
+        <div class="form-group">
+          <label class="form-label" for="new-username">نام کاربری</label>
+          <input class="form-input" id="new-username" type="text" autocomplete="off" minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" placeholder="example.user">
+          <div class="users-field-error" id="new-username-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="new-role">نقش</label>
+          <select class="form-input" id="new-role">
+            <option value="admin">admin</option>
+            <option value="manager">manager</option>
+            <option value="viewer" selected>viewer</option>
+          </select>
+          <div class="users-field-error" id="new-role-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="new-email">ایمیل</label>
+          <input class="form-input" id="new-email" type="email" autocomplete="off" placeholder="user@example.com">
+          <div class="users-field-error" id="new-email-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="new-email-confirm">تکرار ایمیل <span class="users-optional">(اختیاری)</span></label>
+          <input class="form-input" id="new-email-confirm" type="email" autocomplete="off" placeholder="user@example.com">
+          <div class="users-field-error" id="new-email-confirm-error"></div>
+        </div>
+      </div>
+
+      <fieldset id="new-access-fields" class="users-access-fields">
+      <div class="form-group">
+        <div class="users-field-head">
+          <label class="form-label">دفاتر مجاز</label>
+          <span class="users-field-note">خالی = همه دفاتر</span>
+        </div>
+        <div class="users-choice-grid" id="new-offices"></div>
+      </div>
+
+      <div class="form-group">
+        <div class="users-field-head">
+          <label class="form-label">ماژول‌های مجاز</label>
+          <span class="users-field-note">خالی = همه ماژول‌ها</span>
+        </div>
+        <div class="users-choice-grid" id="new-modules"></div>
+      </div>
+      </fieldset>
+    </div>
+
+    <div class="form-actions users-modal-actions">
+      <button class="btn btn-green" id="create-user-btn" type="button" onclick="createUser(event)">ثبت و ارسال ایمیل</button>
+      <button class="btn users-btn-cancel" type="button" onclick="closeUserAddModal()">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="user-access-modal" style="display:none" onclick="if (event.target === this) closeUserAccessModal()">
+  <div class="modal users-modal" onclick="event.stopPropagation()">
+    <div class="users-modal-header">
+      <div>
+        <h3>🔒 تنظیم دسترسی کاربر</h3>
+        <p class="users-modal-hint">هر گزینه‌ای که انتخاب شود به‌صورت محدودکننده اعمال می‌شود. اگر چیزی انتخاب نشود، همه مجاز هستند.</p>
+      </div>
+    </div>
+
+    <div class="users-modal-body">
+      <fieldset id="access-fields" class="users-access-fields">
+      <div class="form-group">
+        <label class="form-label" for="access-user-label">کاربر</label>
+        <input class="form-input" id="access-user-label" type="text" disabled>
+      </div>
+
+      <div class="form-group">
+        <div class="users-field-head">
+          <label class="form-label">دفاتر مجاز</label>
+          <span class="users-field-note">انتخاب چندگانه</span>
+        </div>
+        <div class="users-choice-grid" id="access-offices"></div>
+      </div>
+
+      <div class="form-group">
+        <div class="users-field-head">
+          <label class="form-label">ماژول‌های مجاز</label>
+          <span class="users-field-note">انتخاب چندگانه</span>
+        </div>
+        <div class="users-choice-grid" id="access-modules"></div>
+      </div>
+      </fieldset>
+    </div>
+
+    <div class="form-actions users-modal-actions">
+      <button class="btn btn-cyan" id="save-access-btn" type="button" onclick="saveAccess(event)">ذخیره دسترسی</button>
+      <button class="btn users-btn-cancel" type="button" onclick="closeUserAccessModal()">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+window.currentUserId = {{ current_user.id | default('null') | tojson }};
+let OFFICE_OPTIONS = {{ office_options | default([]) | tojson }};
+const MODULE_OPTIONS = [
+  { id: 'printers', name: 'پرینترها', description: 'مشاهده و مدیریت دستگاه‌ها و وضعیت آن‌ها' },
+  { id: 'logs', name: 'رویدادها و لاگ‌ها', description: 'مشاهده تاریخچه چاپ، هشدارها و رویدادهای دستگاه' },
+  { id: 'excel', name: 'گزارش‌ها و خروجی', description: 'دریافت گزارش‌های Excel، CSV و JSON' },
+  { id: 'users', name: 'مدیریت کاربران', description: 'مدیریت کاربران، نقش‌ها و سطح دسترسی' },
+];
+let usersCache = [];
+let accessUserId = null;
+
+function openAccessHelpModal() {
+  document.getElementById('access-help-modal').style.display = 'flex';
+}
+
+function closeAccessHelpModal() {
+  document.getElementById('access-help-modal').style.display = 'none';
+}
+
+if (typeof window.toast !== 'function') {
+  let toastTimer;
+  window.toast = function(message, type = '') {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `show ${type}`.trim();
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  };
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildChoiceGrid(containerId, options, groupName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = options.map(option => {
+    const value = typeof option === 'string' ? option : option.id;
+    const label = typeof option === 'string' ? option : option.name;
+    const description = typeof option === 'string' ? '' : option.description;
+    return `
+    <label class="users-choice-item">
+      <input type="checkbox" name="${groupName}" value="${escapeHtml(value)}">
+      <span class="users-choice-copy">
+        <strong>${escapeHtml(label)}</strong>
+        ${description ? `<small>${escapeHtml(description)}</small>` : ''}
+      </span>
+    </label>
+  `; }).join('');
+}
+
+function updateAccessFields(containerId, role) {
+  const fields = document.getElementById(containerId);
+  if (!fields) return;
+  fields.disabled = role === 'admin';
+  fields.classList.toggle('is-disabled', role === 'admin');
+}
+
+async function loadOfficeOptions() {
+  try {
+    const data = await requestJson('/api/users/office-options', { cache: 'no-store' });
+    OFFICE_OPTIONS = Array.isArray(data.offices) ? data.offices : [];
+  } catch (error) {
+    console.error('Failed to load office options:', error);
+  }
+  return OFFICE_OPTIONS;
+}
+
+function getChoiceValues(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(input => input.value);
+}
+
+function setChoiceValues(containerId, values) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const selected = new Set((values || []).map(value => String(value)));
+  container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+    input.checked = selected.has(input.value);
+  });
+}
+
+function validateEnglishUsername(username) {
+  return /^[A-Za-z0-9._-]{3,32}$/.test(username);
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function setUsersStatus(message, type = '') {
+  const el = document.getElementById('users-status');
+  if (!el) return;
+  el.textContent = message || '';
+  el.className = `users-status ${type}`.trim();
+}
+
+function setFieldError(fieldId, message) {
+  const input = document.getElementById(fieldId);
+  const error = document.getElementById(`${fieldId}-error`);
+  if (input) input.classList.toggle('is-invalid', Boolean(message));
+  if (error) error.textContent = message || '';
+}
+
+function clearAddUserErrors() {
+  ['new-username', 'new-role', 'new-email', 'new-email-confirm'].forEach(fieldId => setFieldError(fieldId, ''));
+}
+
+function getAddUserFormData() {
+  return {
+    username: document.getElementById('new-username').value.trim(),
+    email: document.getElementById('new-email').value.trim(),
+    emailConfirm: document.getElementById('new-email-confirm').value.trim(),
+    role: document.getElementById('new-role').value,
+    allowed_offices: getChoiceValues('new-offices'),
+    allowed_modules: getChoiceValues('new-modules'),
+  };
+}
+
+function validateAddUserForm({ silent = false } = {}) {
+  const data = getAddUserFormData();
+  const errors = {};
+
+  if (!validateEnglishUsername(data.username)) {
+    errors['new-username'] = 'نام کاربری باید ۳ تا ۳۲ کاراکتر و فقط شامل حروف انگلیسی، عدد، نقطه، خط تیره یا زیرخط باشد.';
+  }
+  if (!data.email) {
+    errors['new-email'] = 'ایمیل الزامی است.';
+  } else if (!validateEmail(data.email)) {
+    errors['new-email'] = 'فرمت ایمیل معتبر نیست.';
+  }
+  if (data.emailConfirm) {
+    if (!validateEmail(data.emailConfirm)) {
+      errors['new-email-confirm'] = 'فرمت تکرار ایمیل معتبر نیست.';
+    } else if (data.email !== data.emailConfirm) {
+      errors['new-email-confirm'] = 'ایمیل و تکرار ایمیل باید یکسان باشند.';
+    }
+  }
+
+  ['new-username', 'new-email', 'new-email-confirm', 'new-role'].forEach(fieldId => {
+    setFieldError(fieldId, errors[fieldId] || '');
+  });
+
+  if (Object.keys(errors).length) {
+    if (!silent) toast('لطفاً خطاهای فرم را اصلاح کنید.', 'e');
+    return null;
+  }
+  return {
+    username: data.username,
+    email: data.email,
+    role: data.role,
+    allowed_offices: data.allowed_offices,
+    allowed_modules: data.allowed_modules,
+  };
+}
+
+function setButtonLoading(button, isLoading, loadingText = 'در حال ذخیره...') {
+  if (!button) return;
+  if (isLoading) {
+    if (!button.dataset.originalText) {
+      button.dataset.originalText = button.innerHTML;
+    }
+    button.disabled = true;
+    button.classList.add('users-btn-loading');
+    button.innerHTML = loadingText;
+  } else {
+    button.disabled = false;
+    button.classList.remove('users-btn-loading');
+    if (button.dataset.originalText) {
+      button.innerHTML = button.dataset.originalText;
+    }
+  }
+}
+
+function markButtonSuccess(button, text = 'ذخیره شد ✓') {
+  if (!button) return;
+  const originalText = button.dataset.originalText || button.innerHTML;
+  button.innerHTML = text;
+  button.classList.add('users-btn-success');
+  setTimeout(() => {
+    button.classList.remove('users-btn-success');
+    button.innerHTML = originalText;
+  }, 1200);
+}
+
+async function requestJson(url, options = {}) {
+  const fetcher = window.apiFetch || window.fetch.bind(window);
+  const response = await fetcher(url, {
+    credentials: 'same-origin',
+    headers: {
+      'Accept': 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (err) {
+    data = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || 'خطا در ارتباط با سرور');
+  }
+  return data;
+}
+
+async function openUserAddModal() {
+  await loadOfficeOptions();
+  buildChoiceGrid('new-offices', OFFICE_OPTIONS, 'new_offices');
+  buildChoiceGrid('new-modules', MODULE_OPTIONS, 'new_modules');
+  document.getElementById('new-username').value = '';
+  document.getElementById('new-email').value = '';
+  document.getElementById('new-email-confirm').value = '';
+  document.getElementById('new-role').value = 'viewer';
+  updateAccessFields('new-access-fields', 'viewer');
+  clearAddUserErrors();
+  document.getElementById('user-add-modal').style.display = 'flex';
+  document.getElementById('new-username').focus();
+}
+
+function closeUserAddModal() {
+  document.getElementById('user-add-modal').style.display = 'none';
+  clearAddUserErrors();
+  setButtonLoading(document.getElementById('create-user-btn'), false);
+}
+
+async function openUserAccessModal(userId) {
+  const user = usersCache.find(item => String(item.id) === String(userId));
+  if (!user) return;
+  if (user.role === 'admin') {
+    toast('admin دسترسی کامل دارد و نیازی به تنظیم دسترسی ندارد.', 'i');
+    return;
+  }
+  await loadOfficeOptions();
+  accessUserId = user.id;
+  document.getElementById('access-user-label').value = `${user.username} <${user.email}>`;
+  buildChoiceGrid('access-offices', OFFICE_OPTIONS, 'access_offices');
+  buildChoiceGrid('access-modules', MODULE_OPTIONS, 'access_modules');
+  setChoiceValues('access-offices', user.allowed_offices || []);
+  setChoiceValues('access-modules', user.allowed_modules || []);
+  document.getElementById('user-access-modal').style.display = 'flex';
+}
+
+function closeUserAccessModal() {
+  document.getElementById('user-access-modal').style.display = 'none';
+  accessUserId = null;
+  setButtonLoading(document.getElementById('save-access-btn'), false);
+}
+
+function accessSummary(values, emptyLabel, options = []) {
+  if (!values || !values.length) return emptyLabel;
+  const labels = new Map(options.map(option => {
+    const value = typeof option === 'string' ? option : option.id;
+    const label = typeof option === 'string' ? option : option.name;
+    return [String(value), label];
+  }));
+  return values.map(value => escapeHtml(labels.get(String(value)) || value)).join('، ');
+}
+
+function createUsersRow(user) {
+  return `
+    <tr class="users-row">
+      <td data-label="نام کاربری">
+        <div class="users-cell-stack">
+          <strong class="users-primary-text">${escapeHtml(user.username)}</strong>
+          <span class="users-secondary-text">شناسه: ${escapeHtml(user.id)}</span>
+        </div>
+      </td>
+      <td data-label="ایمیل">
+        <div class="users-cell-stack">
+          <span class="users-primary-text">${escapeHtml(user.email)}</span>
+          <span class="users-secondary-text">${user.last_login_at ? `آخرین ورود: ${escapeHtml(user.last_login_at.replace('T', ' ').slice(0, 16))}` : 'بدون ورود'}</span>
+        </div>
+      </td>
+      <td data-label="نقش">
+        <div class="users-role-wrap">
+          <select class="form-input user-role-select" data-user-id="${user.id}" data-initial-role="${user.role}">
+            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+            <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>manager</option>
+            <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>viewer</option>
+          </select>
+        </div>
+      </td>
+      <td data-label="تأیید">
+        <button class="btn ${user.is_verified ? 'btn-green' : 'btn-orange'} users-verify-btn" onclick="toggleVerify(event, ${user.id}, ${user.is_verified ? 'false' : 'true'})">
+          ${user.is_verified ? 'Verified' : 'Pending'}
+        </button>
+      </td>
+      <td data-label="دسترسی">
+        <div class="users-access-summary">
+          ${user.role === 'admin'
+            ? '<div class="users-full-access">دسترسی کامل</div>'
+            : `<div><strong>دفاتر:</strong> ${accessSummary(user.allowed_offices, 'همه', OFFICE_OPTIONS)}</div>
+               <div><strong>ماژول‌ها:</strong> ${accessSummary(user.allowed_modules, 'همه', MODULE_OPTIONS)}</div>`}
+        </div>
+      </td>
+      <td data-label="عملیات">
+        <div class="users-row-actions">
+          ${String(user.id) === String(window.currentUserId)
+            ? '<span class="users-self-access-note">حساب جاری</span>'
+            : `<button class="btn btn-cyan users-action-btn users-save-role-btn" data-user-id="${user.id}" onclick="saveRole(event, ${user.id})" disabled>ذخیره نقش</button>`}
+          ${String(user.id) === String(window.currentUserId) ? '' : user.role === 'admin'
+            ? '<span class="users-full-access-badge">دسترسی کامل</span>'
+            : `<button class="btn btn-green users-action-btn" onclick="openUserAccessModal(${user.id})">تنظیم دسترسی</button>`}
+          <button class="btn btn-red users-action-btn" onclick="deleteUser(event, ${user.id}, '${escapeHtml(user.username)}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function bindRoleSelects() {
+  document.querySelectorAll('.user-role-select').forEach(select => {
+    const userId = select.dataset.userId;
+    const saveBtn = document.querySelector(`.users-save-role-btn[data-user-id="${userId}"]`);
+    const syncState = () => {
+      const changed = select.value !== select.dataset.initialRole;
+      if (saveBtn) {
+        saveBtn.disabled = !changed;
+        saveBtn.classList.toggle('users-btn-attention', changed);
+      }
+    };
+    select.addEventListener('change', syncState);
+    syncState();
+  });
+}
+
+async function loadUsers({ silent = false } = {}) {
+  const tbody = document.getElementById('users-tbody');
+  if (!silent) setUsersStatus('در حال دریافت کاربران...');
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="6" class="users-empty-cell">
+        <div class="loading-spinner">در حال دریافت کاربران...</div>
+      </td>
+    </tr>`;
+
+  try {
+    const data = await requestJson('/api/users');
+    usersCache = data.users || [];
+    tbody.innerHTML = usersCache.length
+      ? usersCache.map(createUsersRow).join('')
+      : `<tr><td colspan="6" class="users-empty-cell">کاربری یافت نشد.</td></tr>`;
+    bindRoleSelects();
+    setUsersStatus(`${data.total} کاربر بارگذاری شد`, 'success');
+  } catch (err) {
+    setUsersStatus(err.message, 'error');
+    tbody.innerHTML = `<tr><td colspan="6" class="users-empty-cell users-error-text">${escapeHtml(err.message)}</td></tr>`;
+    if (!silent) toast(err.message, 'e');
+  }
+}
+
+async function createUser(event) {
+  const button = event?.currentTarget || document.getElementById('create-user-btn');
+  const payload = validateAddUserForm();
+  if (!payload) return;
+
+  setButtonLoading(button, true, 'در حال ایجاد کاربر...');
+  try {
+    const data = await requestJson('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    closeUserAddModal();
+    await loadUsers({ silent: true });
+    toast(data.user?.email_sent ? 'کاربر ساخته شد و ایمیل تنظیم رمز ارسال شد.' : 'کاربر ساخته شد، اما ارسال ایمیل ناموفق بود.', data.user?.email_sent ? 's' : 'w');
+    setUsersStatus('کاربر جدید با موفقیت اضافه شد.', 'success');
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+    setButtonLoading(button, false);
+  }
+}
+
+async function saveRole(event, userId) {
+  const button = event?.currentTarget;
+  const select = document.querySelector(`.user-role-select[data-user-id="${userId}"]`);
+  if (!select) return;
+  const role = select.value;
+
+  setButtonLoading(button, true, 'در حال ذخیره...');
+  try {
+    await requestJson(`/api/users/${userId}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+    markButtonSuccess(button);
+    toast('نقش کاربر با موفقیت به‌روزرسانی شد.', 's');
+    setUsersStatus('نقش کاربر ذخیره شد.', 'success');
+    await loadUsers({ silent: true });
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+    setButtonLoading(button, false);
+  }
+}
+
+async function toggleVerify(event, userId, isVerified) {
+  const button = event?.currentTarget;
+  setButtonLoading(button, true, 'در حال ثبت...');
+  try {
+    await requestJson(`/api/users/${userId}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ is_verified: isVerified }),
+    });
+    toast('وضعیت تأیید کاربر به‌روزرسانی شد.', 's');
+    setUsersStatus('وضعیت تأیید با موفقیت ذخیره شد.', 'success');
+    await loadUsers({ silent: true });
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+    setButtonLoading(button, false);
+  }
+}
+
+async function deleteUser(event, userId, username) {
+  if (!confirm(`آیا از حذف کاربر «${username}» مطمئن هستید؟`)) return;
+  if (!confirm('این عملیات برگشت‌ناپذیر است. حذف نهایی انجام شود؟')) return;
+
+  const button = event?.currentTarget;
+  setButtonLoading(button, true, 'در حال حذف...');
+  try {
+    await requestJson(`/api/users/${userId}`, { method: 'DELETE' });
+    toast('کاربر با موفقیت حذف شد.', 's');
+    setUsersStatus('کاربر حذف شد.', 'success');
+    await loadUsers({ silent: true });
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+    setButtonLoading(button, false);
+  }
+}
+
+async function saveAccess(event) {
+  if (!accessUserId) return;
+  const button = event?.currentTarget || document.getElementById('save-access-btn');
+  const payload = {
+    allowed_offices: getChoiceValues('access-offices'),
+    allowed_modules: getChoiceValues('access-modules'),
+  };
+
+  setButtonLoading(button, true, 'در حال ذخیره...');
+  try {
+    await requestJson(`/api/users/${accessUserId}/access`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    closeUserAccessModal();
+    toast('دسترسی‌های کاربر ذخیره شد.', 's');
+    setUsersStatus('دسترسی کاربر با موفقیت ذخیره شد.', 'success');
+    await loadUsers({ silent: true });
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+    setButtonLoading(button, false);
+  }
+}
+
+function bindAddUserValidation() {
+  ['new-username', 'new-email', 'new-email-confirm'].forEach(fieldId => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.addEventListener('input', () => validateAddUserForm({ silent: true }));
+    el.addEventListener('blur', () => validateAddUserForm({ silent: true }));
+  });
+}
+
+buildChoiceGrid('new-modules', MODULE_OPTIONS, 'new_modules');
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindAddUserValidation();
+  document.getElementById('new-role')?.addEventListener('change', event => {
+    updateAccessFields('new-access-fields', event.target.value);
+  });
+  loadOfficeOptions().then(() => {
+    buildChoiceGrid('new-offices', OFFICE_OPTIONS, 'new_offices');
+    loadUsers();
+  });
+});
+</script>
+{% endblock %}

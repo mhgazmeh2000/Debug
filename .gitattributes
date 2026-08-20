@@ -1,0 +1,7 @@
+# Normalize line endings
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.db binary

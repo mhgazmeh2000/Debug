@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}ثبت‌نام | Multi Printer Monitoring{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+  <section class="auth-shell">
+    <div class="auth-hero">
+      <div class="auth-badge">Create Account</div>
+      <h1>ایجاد حساب جدید</h1>
+      <p>برای دسترسی به داشبورد و APIها یک حساب کاربری بسازید.</p>
+    </div>
+
+    <div class="auth-card">
+      <h2>ثبت‌نام</h2>
+      {% if error %}<div class="auth-alert error">{{ error }}</div>{% endif %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="auth-alert {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      <form method="post" class="auth-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>نام کاربری</label>
+        <input class="form-input" type="text" name="username" placeholder="mohsen" required>
+
+        <label>ایمیل</label>
+        <input class="form-input" type="email" name="email" placeholder="user@example.com" required>
+
+        <label>رمز عبور</label>
+        <input class="form-input" type="password" name="password" required>
+
+        <label>تکرار رمز عبور</label>
+        <input class="form-input" type="password" name="confirm_password" required>
+
+        {% if recaptcha_site_key %}
+        <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+        {% endif %}
+
+        <button class="btn btn-cyan auth-submit" type="submit">ثبت‌نام</button>
+      </form>
+
+      <div class="auth-links">
+        <a href="{{ url_for('auth.login') }}">بازگشت به ورود</a>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}

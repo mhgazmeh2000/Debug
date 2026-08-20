@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}در انتظار تأیید{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+  <section class="auth-shell single-col">
+    <div class="auth-card wide-card">
+      <h2>حساب شما در انتظار تأیید است</h2>
+      <p class="auth-note">تا زمانی که ادمین حساب شما را تأیید نکند، فقط می‌توانید این صفحه و خروج را ببینید.</p>
+      <div class="auth-alert warning">حساب شما در انتظار تأیید ادمین است.</div>
+      <div class="auth-links" style="margin-top:18px">
+        <a class="btn btn-red" href="{{ url_for('auth.logout') }}">خروج</a>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}

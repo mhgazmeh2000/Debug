@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🗺️ نقشه معماری و جریان داده — Multi-Brand Printer Monitor</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#0b1220; color:#e5edf7; font-family:'Segoe UI',Tahoma,Arial,sans-serif;
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  header{
+    display:flex; align-items:center; gap:14px; padding:10px 18px;
+    background:linear-gradient(135deg,#122142 0%,#0d1730 60%,#101b2e 100%);
+    border-bottom:1px solid #24334d; flex:0 0 auto; z-index:10; flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{font-size:26px}
+  .brand h1{font-size:17px;font-weight:700;white-space:nowrap}
+  .brand small{color:#8ea3c4;font-size:11px;display:block;font-weight:400}
+  .tabs{display:flex;gap:6px;background:#0c1526;padding:4px;border-radius:12px;border:1px solid #24334d}
+  .tabs button{
+    border:0;background:transparent;color:#9db2d3;padding:7px 14px;border-radius:9px;
+    cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;transition:.18s;
+  }
+  .tabs button.active{background:#2563eb;color:#fff;box-shadow:0 2px 10px rgba(37,99,235,.45)}
+  .hspace{flex:1}
+  .toolrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .search{
+    background:#0c1526;border:1px solid #24334d;color:#e5edf7;border-radius:10px;
+    padding:8px 12px;font-family:inherit;font-size:12.5px;width:210px;outline:none;
+  }
+  .search:focus{border-color:#3b82f6}
+  .btn{
+    background:#1d4ed8;border:1px solid #3b82f6;color:#fff;border-radius:10px;
+    padding:8px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:#2563eb;transform:translateY(-1px)}
+  .btn.ghost{background:#0c1526;border-color:#24334d;color:#c7d5ec;font-weight:600}
+  .btn.ghost:hover{border-color:#3b82f6;background:#12233f}
+  #legendBar{
+    display:flex;gap:6px;align-items:center;padding:7px 16px;background:#0d1730;
+    border-bottom:1px solid #1e2c44;flex-wrap:wrap;flex:0 0 auto;
+  }
+  #legendBar .lbl{font-size:11px;color:#7d92b6;margin-left:4px;font-weight:700}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;background:#0c1526;border:1px solid #24334d;
+    color:#b9c8e2;border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;transition:.15s;user-select:none;
+  }
+  .chip .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .chip.off{opacity:.32;filter:grayscale(.7)}
+  .chip:hover{border-color:#3b82f6}
+  main{flex:1;display:flex;min-height:0;position:relative}
+  #canvasWrap{flex:1;position:relative;overflow:hidden;
+    background:radial-gradient(1200px 600px at 70% -10%,#132346 0%,transparent 55%),
+               radial-gradient(900px 500px at -10% 110%,#0f2b38 0%,transparent 50%), #0b1220;}
+  svg#svg{width:100%;height:100%;display:block;cursor:grab}
+  svg#svg:active{cursor:grabbing}
+  #zoomCtl{position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:5}
+  #zoomCtl button{
+    width:36px;height:36px;border-radius:10px;border:1px solid #24334d;background:#101b2ee6;
+    color:#c7d5ec;font-size:16px;cursor:pointer;font-family:inherit;
+  }
+  #zoomCtl button:hover{border-color:#3b82f6;background:#16264a}
+  #viewNote{
+    position:absolute;left:14px;top:12px;z-index:4;background:#101b2ed9;border:1px solid #24334d;
+    border-radius:12px;padding:8px 14px;font-size:11.5px;color:#93a8cc;max-width:430px;line-height:1.7;
+  }
+  aside#panel{
+    width:350px;flex:0 0 auto;background:#101b2e;border-right:0;border-left:1px solid #24334d;
+    display:flex;flex-direction:column;min-height:0;transition:margin .25s;
+  }
+  aside#panel.hidden{margin-left:-350px}
+  #panelHead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1e2c44}
+  #panelHead b{font-size:14px}
+  #panelBody{flex:1;overflow-y:auto;padding:14px}
+  .pEmpty{color:#7d92b6;font-size:12.5px;text-align:center;margin-top:40px;line-height:2}
+  .pCat{display:inline-block;font-size:10.5px;border-radius:999px;padding:3px 10px;color:#fff;margin-bottom:8px}
+  .pTitle{font-size:16px;font-weight:800;margin-bottom:4px}
+  .pFile{direction:ltr;text-align:left;background:#0c1526;border:1px solid #24334d;color:#7dd3fc;
+    border-radius:8px;padding:6px 10px;font-family:Consolas,monospace;font-size:12px;margin:8px 0 12px;word-break:break-all}
+  .pDesc{font-size:12.8px;line-height:2;color:#c4d2ea;background:#0c1526;border:1px solid #1e2c44;border-radius:10px;padding:10px 12px}
+  .pSec{margin-top:16px}
+  .pSec h4{font-size:12px;color:#8ea3c4;margin-bottom:8px}
+  .pChips{display:flex;flex-wrap:wrap;gap:6px}
+  .pCode{list-style:none;padding:0;margin:0}
+  .pCode li{font-size:11.8px;line-height:1.95;color:#bdd0ec;padding:7px 9px;background:#0c1526;
+    border:1px solid #1e2c44;border-radius:8px;margin-bottom:7px;text-align:justify}
+  .pCode li::before{content:'\25B9  ';color:#60a5fa;font-weight:700}
+  .pCode code{direction:ltr;unicode-bidi:embed;background:#12213a;border:1px solid #2a3d5e;border-radius:5px;
+    padding:1px 6px;color:#7dd3fc;font-size:10.5px;font-family:Consolas,'Courier New',monospace}
+  .pChip{background:#12213a;border:1px solid #2a3d5e;color:#bcd0ef;border-radius:8px;padding:4px 10px;
+    font-size:11px;cursor:pointer;transition:.15s;font-family:Consolas,monospace}
+  .pChip:hover{border-color:#3b82f6;background:#1a2c4d;color:#fff}
+  .pStat{display:flex;gap:10px;margin-top:14px}
+  .pStat div{flex:1;background:#0c1526;border:1px solid #1e2c44;border-radius:10px;text-align:center;padding:8px 4px}
+  .pStat b{display:block;font-size:17px;color:#60a5fa}
+  .pStat span{font-size:10px;color:#7d92b6}
+  /* ====== SVG elements ====== */
+  .zone{fill-opacity:.06;stroke:#2a3d5e;stroke-dasharray:6 5;stroke-width:1.2}
+  .zoneTitle{fill:#8ea3c4;font-size:13px;font-weight:700}
+  .node{cursor:pointer}
+  .node .box{stroke:#0f172a;stroke-width:1.2;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35));transition:.15s}
+  .node .icon{font-size:15px}
+  .node .title{fill:#fff;font-weight:700}
+  .node .sub{fill:#e2e8f0;opacity:.85}
+  .node:hover .box{stroke:#fbbf24;stroke-width:2.2}
+  .node.dim{opacity:.16}
+  .node.sel .box{stroke:#fbbf24;stroke-width:2.6}
+  .node.match .box{stroke:#22d3ee;stroke-width:2.4}
+  .edge path{fill:none;stroke:#54678c;stroke-width:1.4}
+  .edge.dim{opacity:.07}
+  .edge.hl path{stroke:#fbbf24;stroke-width:2.4}
+  /* برچسب یال‌ها — همیشه روی همه‌ی لایه‌ها، با زمینه‌ی تیره برای خوانایی */
+  .eglabel{pointer-events:none}
+  .eglabel text{fill:#c3d3ef;font-size:10px;font-weight:600}
+  .eglabel rect.elabb{fill:#0b1226;opacity:.88}
+  .eglabel.hl text{fill:#fde68a;font-weight:700}
+  .eglabel.hl rect.elabb{opacity:.96;stroke:#fbbf24;stroke-width:1}
+  .eglabel.dim{opacity:.09}
+  .edge.k-http path{stroke-dasharray:5 4;stroke:#22a3c4}
+  .edge.k-rw path{stroke-dasharray:3 3;stroke:#b07fd8}
+  .edge.k-test path{stroke-dasharray:7 4;stroke:#7c8db0}
+  .flowNum{fill:#0b1220;font-weight:800;font-size:12px}
+  .flowBadge{fill:#fbbf24}
+  /* flow play bar */
+  #flowBar{position:absolute;right:14px;top:12px;z-index:5;display:none;gap:8px;align-items:center;
+    background:#101b2ee6;border:1px solid #24334d;border-radius:12px;padding:8px 12px}
+  #flowBar.show{display:flex}
+  #flowBar .step{font-size:12px;color:#c7d5ec;min-width:90px;text-align:center}
+  #flowProg{width:130px;height:6px;background:#0c1526;border-radius:4px;overflow:hidden}
+  #flowProg i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#22d3ee);width:0%;transition:.3s}
+  /* help modal */
+  #helpModal{position:fixed;inset:0;background:rgba(4,9,20,.75);display:none;z-index:50;
+    align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  #helpModal.show{display:flex}
+  #helpBox{background:#101b2e;border:1px solid #2a3d5e;border-radius:16px;max-width:640px;width:92%;
+    max-height:84vh;overflow-y:auto;padding:22px 24px}
+  #helpBox h2{font-size:17px;margin-bottom:12px}
+  #helpBox h3{font-size:13.5px;color:#60a5fa;margin:16px 0 6px}
+  #helpBox p,#helpBox li{font-size:12.8px;line-height:2;color:#c4d2ea}
+  #helpBox ul{padding-right:18px}
+  #helpBox code{direction:ltr;display:inline-block;background:#0c1526;border:1px solid #24334d;border-radius:6px;padding:1px 7px;color:#7dd3fc;font-size:11.5px}
+  #toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:#14532d;border:1px solid #22c55e;
+    color:#dcfce7;padding:10px 18px;border-radius:12px;font-size:13px;z-index:60;display:none}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#2a3d5e;border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  @media (max-width:980px){
+    aside#panel{position:absolute;left:0;top:0;bottom:0;z-index:20;box-shadow:6px 0 24px rgba(0,0,0,.5)}
+    .search{width:130px}
+    #viewNote{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">🗺️</span>
+    <h1>نقشه‌ی معماری Multi-Printer
+      <small>ارتباط فایل‌ها · جریان دریافت اطلاعات · خروجی draw.io</small>
+    </h1>
+  </div>
+  <div class="tabs" id="tabs">
+    <button data-view="arch" class="active">🏗️ معماری لایه‌ها</button>
+    <button data-view="flow">🔄 جریان داده</button>
+    <button data-view="dep">🧩 وابستگی فایل‌ها</button>
+  </div>
+  <div class="hspace"></div>
+  <div class="toolrow">
+    <input id="search" class="search" placeholder="🔍 جستجوی فایل یا نام…">
+    <button class="btn" id="exportXml">⬇️ خروجی XML <span style="font-weight:400">(draw.io)</span></button>
+    <button class="btn ghost" id="helpBtn">؟ راهنما</button>
+  </div>
+</header>
+
+<div id="legendBar">
+  <span class="lbl">دسته‌ها:</span>
+  <span id="legend"></span>
+</div>
+
+<main>
+  <div id="canvasWrap">
+    <div id="viewNote"></div>
+    <div id="flowBar">
+      <button class="btn ghost" id="flowPrev">◀ قبلی</button>
+      <button class="btn" id="flowPlay">▶ پخش</button>
+      <button class="btn ghost" id="flowNext">بعدی ▶</button>
+      <div class="step" id="flowStepLbl">مرحله ۰ از ۱۳</div>
+      <div id="flowProg"><i></i></div>
+    </div>
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7.5,3 L0,6 Z" fill="#54678c"></path>
+        </marker>
+        <marker id="arrH" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7.5,3 L0,6 Z" fill="#fbbf24"></path>
+        </marker>
+      </defs>
+      <g id="world"></g>
+    </svg>
+    <div id="zoomCtl">
+      <button id="zin" title="بزرگ‌نمایی">＋</button>
+      <button id="zout" title="کوچک‌نمایی">－</button>
+      <button id="zfit" title="متناسب با صفحه">⤢</button>
+      <button id="zreset" title="بازنشانی">⟲</button>
+    </div>
+  </div>
+  <aside id="panel">
+    <div id="panelHead"><b id="pHead">جزئیات</b><button class="btn ghost" id="panelClose" style="padding:4px 10px">✕</button></div>
+    <div id="panelBody"><div class="pEmpty">👆 روی هر گره کلیک کنید تا<br>توضیح، مسیر فایل و ارتباطاتش را ببینید.<br><br>🔍 با جستجو، فایل‌ها را پیدا کنید.<br>🖱️ برای جابه‌جایی، صفحه را بکشید و با چرخ موس زوم کنید.</div></div>
+  </aside>
+</main>
+
+<div id="helpModal"><div id="helpBox">
+  <h2>📖 راهنمای استفاده از نقشه‌ی معماری</h2>
+  <p>این نقشه ساختار کامل پروژه‌ی <b>Multi-Brand Printer Monitor</b> را در سه نما نشان می‌دهد. هر گره یک «فایل/ماژول» واقعی پروژه است؛ روی هر گره کلیک کنید تا توضیح فارسی، مسیر دقیق فایل، و لیست فایل‌هایی که استفاده می‌کند و فایل‌هایی که از او استفاده می‌کنند نمایش داده شود.</p>
+  <h3>🏗️ نمای معماری لایه‌ها</h3>
+  <p>مسیر حرکت داده را از بالا به پایین نشان می‌دهد: از <b>دستگاه‌های شبکه</b> → لایه‌ی <b>SNMP/HTTP</b> → <b>جمع‌آورنده‌ها (Collectors)</b> → <b>پردازش و وضعیت</b> → <b>ذخیره‌سازی</b> → <b>وب (Flask)</b> → <b>مرورگر کاربر</b>.</p>
+  <h3>🔄 نمای جریان داده</h3>
+  <p>چرخه‌ی کامل دریافت اطلاعات را در <b>۱۳ مرحله‌ی شماره‌دار</b> توضیح می‌دهد. با دکمه‌ی «▶ پخش» مراحل به‌ترتیب روشن می‌شوند و توضیح هر مرحله در پنل کناری نمایش داده می‌شود. سه «جریان فرعی» (سنسور، اسکن OID، اکشن‌های کاربر) هم پایین صفحه آمده‌اند.</p>
+  <h3>🧩 نمای وابستگی فایل‌ها</h3>
+  <p><b>۶۰ گره</b> (همه‌ی فایل‌های پروژه + فایل‌های داده‌ی runtime + گره‌های بیرونی/تست)، ستون‌بندی‌شده بر اساس پوشه. پیکان <code>A ─▶ B</code> یعنی «A از B استفاده می‌کند (import)». خط‌های <b>چین آبی</b> = فراخوانی HTTP از فرانت‌اند، خط‌های <b>نقطه‌چین بنفش</b> = خواندن/نوشتن فایل، خط‌های <b>چین خاکستری</b> = تست.</p>
+  <h3>⬇️ خروجی XML (draw.io)</h3>
+  <ul>
+    <li>دکمه‌ی «خروجی XML» یک فایل <code>multi-printer-architecture.xml</code> می‌سازد که <b>هر سه نما</b> را در سه صفحه‌ی جدا دارد.</li>
+    <li>در سایت <code>app.diagrams.net</code> (یا برنامه‌ی دسکتاپ draw.io) از مسیر <code>File → Open</code> فایل را باز کنید؛ هر سه صفحه قابل ویرایش و خروجی‌گرفتن (PDF/PNG/SVG) هستند.</li>
+  </ul>
+  <h3>🖱️ کنترل‌ها</h3>
+  <ul>
+    <li>کشیدن صفحه = جابه‌جایی · چرخ موس یا دکمه‌های ＋/－ = زوم · ⤢ = متناسب با صفحه (در نمای وابستگی حتماً زوم کنید)</li>
+    <li>هاور روی گره = هایلایت تمام اتصالاتش · کلیک روی چیپ‌های رنگی بالای صفحه = نمایش/پنهان‌کردن یک دسته</li>
+    <li>جستجو بر اساس نام فایل یا نام فارسی کار می‌کند.</li>
+  </ul>
+  <div style="text-align:left;margin-top:14px"><button class="btn" id="helpClose">بستن</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ======================================================================
+   DATA — همه‌ی گره‌ها و یال‌ها (بدون هیچ وابستگی به DOM)
+   ====================================================================== */
+const CATS = {
+  entry:    {name:'نقطه ورود',            color:'#eab308'},
+  external: {name:'بیرونی (دستگاه/سرویس)',color:'#f97316'},
+  protocol: {name:'لایه SNMP/شبکه',        color:'#14b8a6'},
+  collect:  {name:'جمع‌آوری داده',         color:'#22c55e'},
+  core:     {name:'پردازش و وضعیت',        color:'#3b82f6'},
+  data:     {name:'لایه داده (DB/JSON)',   color:'#a855f7'},
+  web:      {name:'وب (Flask/Auth)',       color:'#f43f5e'},
+  ui:       {name:'رابط کاربری',           color:'#06b6d4'},
+  tool:     {name:'تست و ابزار',           color:'#64748b'}
+};
+const ICONS = {entry:'🚀',external:'🌍',protocol:'📡',collect:'🧰',core:'⚙️',data:'💾',web:'🌐',ui:'🖥️',tool:'🧪'};
+
+/* --- گره‌های مشترک بین نماهای «معماری» و «وابستگی» --- */
+/* arch: [x,y,w,h] | depCol: شماره ستون در نمای وابستگی */
+const NODES = [
+ /* --- entry --- */
+ {id:'run',   cat:'entry', title:'run.py', sub:'نقطه ورود + threads', file:'run.py',
+  desc:'نقطه ورود برنامه. دیتابیس را init می‌کند، app فلسک را می‌سازد و پنج thread پس‌زمینه (poll فوری، حلقه‌ی polling هر ۶۰ ثانیه، اسکن هفتگی OID، cleanup لاگ‌های قدیمی و پاک‌سازی ترمینال) را اجرا می‌کند؛ سپس روی 0.0.0.0:5053 سرو می‌شود.',
+  arch:[1000,620,175,64], depCol:0},
+ {id:'cadmin',cat:'entry', title:'create_admin.py', sub:'ساخت ادمین از CLI', file:'create_admin.py',
+  desc:'اسکریپت خط فرمان برای ساخت کاربر ادمین یا ارتقای یک کاربر موجود به نقش admin، بدون نیاز به رابط وب.',
+  arch:null, depCol:0},
+ /* --- config --- */
+ {id:'cfg',   cat:'core', title:'config/settings.py', sub:'تنظیمات سراسری', file:'config/settings.py',
+  desc:'تنظیمات سراسری: مسیر فایل‌ها، POLL_INTERVAL=60 ثانیه، پورت 5053، آستانه‌های هشدار تونر، subnet دفاتر، SECRET_KEY و CORS — همه قابل بازنویسی با متغیرهای محیطی (ENV).',
+  arch:null, depCol:1},
+ /* --- web --- */
+ {id:'models',cat:'web', title:'models.py', sub:'مدل User + bcrypt', file:'models.py',
+  desc:'مدل کاربر (Flask-Login). هش و تایید رمز با bcrypt، و خواندن نقش (admin/manager/viewer)، دفاتر و ماژول‌های مجاز هر کاربر از دیتابیس.',
+  arch:[640,900,140,78], depCol:0},
+ {id:'utils', cat:'web', title:'utils.py', sub:'ایمیل · توکن · reCAPTCHA', file:'utils.py',
+  desc:'ابزارهای کمکی وب: ارسال ایمیل از طریق SMTP، ساخت و اعتبارسنجی توکن ریست رمز (itsdangerous) و تایید reCAPTCHA با سرویس گوگل.',
+  arch:[800,900,140,78], depCol:0},
+ {id:'wapp',  cat:'web', title:'web/__init__.py', sub:'create_app + blueprintها', file:'web/__init__.py',
+  desc:'کارخانه‌ی ساخت app فلسک: ثبت هر ۱۴ blueprint روت‌ها، اتصال سیستم احراز هویت، اعمال middlewareهای امنیتی و تنظیم CORS.',
+  arch:[50,900,200,78], depCol:6},
+ {id:'auth',  cat:'web', title:'web/auth.py', sub:'ورود/ثبت‌نام/OAuth/دسترسی', file:'web/auth.py',
+  desc:'ورود، ثبت‌نام، خروج، Google OAuth و ریست رمز. دکوریتورهای admin_required و توابع محدودسازی بر اساس دفتر و ماژول هم اینجاست.',
+  arch:[270,900,170,78], depCol:6},
+ {id:'wsec',  cat:'web', title:'web/security.py', sub:'CSRF · Rate limit', file:'web/security.py',
+  desc:'لایه‌ی دفاعی وب: CSRF (Flask-WTF) روی همه‌ی درخواست‌های تغییردهنده، Rate limiting (Flask-Limiter) و headerهای امنیتی.',
+  arch:[460,900,160,78], depCol:6},
+ /* --- routes --- */
+ {id:'r_api', cat:'web', title:'routes: printers·logs·groups·system·stats', sub:'API اصلی داشبورد', file:'web/routes/{printers,logs,groups,system,stats}.py',
+  desc:'روت‌های سروِ اصلی داشبورد: لیست و جزئیات پرینترها، افزودن/حذف/ویرایش، toner reset، لاگ‌ها، رویداد دستی، گروه‌ها، وضعیت سیستم، poll دستی و آمار روزانه.',
+  arch:[970,890,330,44], depCol:null},
+ {id:'r_adm', cat:'web', title:'routes: users·security·yield_status', sub:'مدیریت و امنیت', file:'web/routes/{users,security,yield_status}.py',
+  desc:'مدیریت کاربران (ساخت/نقش/تایید/دسترسی/حذف)، داشبورد امنیت و API رویدادهای امنیتی، و وضعیت Yield Engine.',
+  arch:[970,944,330,44], depCol:null},
+ {id:'r_rep', cat:'web', title:'routes: export_bp·import_db', sub:'گزارش و import', file:'web/routes/{export_bp,import_db}.py',
+  desc:'خروجی Excel (سه شیت: وضعیت، لاگ، تاریخچه reset) و CSV؛ تحلیل و import دیتابیس با backup خودکار و مدیریت رکوردهای تکراری.',
+  arch:[1320,890,330,44], depCol:null},
+ {id:'r_scan',cat:'web', title:'routes: scan·validation·discover·dashboard', sub:'اسکن و صفحه اصلی', file:'web/routes/{scan,validation,discover,dashboard}.py',
+  desc:'اسکن OID و مشاهده profileها، بررسی سازگاری کانترها، کشف خودکار دستگاه‌های شبکه و رندر صفحه‌ی اصلی داشبورد.',
+  arch:[1320,944,330,44], depCol:null},
+ /* نمای وابستگی: هر ۱۴ فایل روت جداگانه */
+ {id:'rdash',  cat:'web', title:'dashboard.py',  sub:'', file:'web/routes/dashboard.py',  desc:'رندر صفحه‌ی اصلی داشبورد.', arch:null, depCol:7},
+ {id:'rprint', cat:'web', title:'printers.py',   sub:'', file:'web/routes/printers.py',   desc:'API پرینترها: لیست/جزئیات/افزودن/حذف/ویرایش، toner reset، auto-discover و endpointهای debug.', arch:null, depCol:7},
+ {id:'rlogs',  cat:'web', title:'logs.py',       sub:'', file:'web/routes/logs.py',       desc:'API لاگ‌ها: همه‌ی رویدادها، لاگ هر دستگاه، پاک‌سازی و ثبت رویداد دستی.', arch:null, depCol:7},
+ {id:'rexport',cat:'web', title:'export_bp.py',  sub:'', file:'web/routes/export_bp.py',  desc:'خروجی Excel (Printer Status / Job Log / Reset History) و CSV از لاگ‌ها و reset history.', arch:null, depCol:7},
+ {id:'rdisc',  cat:'web', title:'discover.py',   sub:'', file:'web/routes/discover.py',   desc:'کشف دستگاه‌ها در شبکه با SNMP و ThreadPool.', arch:null, depCol:7},
+ {id:'rscan',  cat:'web', title:'scan.py',       sub:'', file:'web/routes/scan.py',       desc:'API اسکن OID و مشاهده‌ی profileهای ذخیره‌شده.', arch:null, depCol:7},
+ {id:'rstats', cat:'web', title:'stats.py',      sub:'', file:'web/routes/stats.py',      desc:'آمار روزانه‌ی چاپ و سنسورها برای نمودارهای داشبورد.', arch:null, depCol:7},
+ {id:'rsys',   cat:'web', title:'system.py',     sub:'', file:'web/routes/system.py',     desc:'وضعیت سیستم و اجرای poll دستی.', arch:null, depCol:7},
+ {id:'rsec',   cat:'web', title:'security.py',   sub:'', file:'web/routes/security.py',   desc:'صفحه و APIهای داشبورد امنیت (رویدادها و آمار).', arch:null, depCol:7},
+ {id:'rusers', cat:'web', title:'users.py',      sub:'', file:'web/routes/users.py',      desc:'مدیریت کاربران: ساخت، نقش، تایید، دسترسی دفتر/ماژول و حذف.', arch:null, depCol:7},
+ {id:'rvalid', cat:'web', title:'validation.py', sub:'', file:'web/routes/validation.py', desc:'بررسی سازگاری کانترها و اعتبارسنجی profileهای OID.', arch:null, depCol:7},
+ {id:'rgroups',cat:'web', title:'groups.py',     sub:'', file:'web/routes/groups.py',     desc:'API گروه‌های سفارشی: ساخت، تغییرنام، حذف.', arch:null, depCol:7},
+ {id:'rimport',cat:'web', title:'import_db.py',  sub:'', file:'web/routes/import_db.py',  desc:'تحلیل و import دیتابیس با backup خودکار، فیلتر IP/تاریخ و مدیریت تکراری‌ها.', arch:null, depCol:7},
+ {id:'ryield', cat:'web', title:'yield_status.py',sub:'', file:'web/routes/yield_status.py',desc:'وضعیت Yield Engine و تولید گزارش متنی.', arch:null, depCol:7},
+ /* --- external --- */
+ {id:'dev_printers',cat:'external',title:'پرینترها',sub:'Toshiba · HP · Canon · Brother',file:null,
+  desc:'پرینترهای شبکه (Toshiba e-STUDIO، HP LaserJet/FutureSmart، Canon i-SENSYS/MF، Brother). داده‌ها با SNMP (UDP/161) و در صورت نیاز با HTTP scraping از رابط وب خود دستگاه خوانده می‌شوند.',
+  arch:[50,55,230,62], depCol:10},
+ {id:'dev_sensor',cat:'external',title:'سنسور ECS100G',sub:'دما / رطوبت',file:null,
+  desc:'سنسور محیطی ECS100G که دما و رطوبت را از طریق SNMP v1 ارائه می‌کند.',
+  arch:[310,55,180,62], depCol:10},
+ {id:'svc_google',cat:'external',title:'Google OAuth',sub:'ورود با گوگل',file:null,
+  desc:'ورود با حساب گوگل (authlib) به‌جای رمز عبور محلی.',
+  arch:[1330,55,130,62], depCol:10},
+ {id:'svc_recap',cat:'external',title:'reCAPTCHA',sub:'ضد ربات فرم‌ها',file:null,
+  desc:'گوگل reCAPTCHA برای جلوگیری از حمله‌ی ربات به فرم ورود/ثبت‌نام.',
+  arch:[1480,55,120,62], depCol:10},
+ {id:'svc_smtp',cat:'external',title:'SMTP',sub:'ارسال ایمیل',file:null,
+  desc:'سرور ایمیل (SMTP) برای ارسال لینک ریست رمز عبور.',
+  arch:[1620,55,120,62], depCol:10},
+ {id:'browser',cat:'ui',title:'🧑‍💻 مرورگر کاربر',sub:'HTTP → /api/...',file:null,
+  desc:'کاربر نهایی: داشبورد را می‌بیند و اکشن‌ها (افزودن پرینتر، ریست تونر، گروه‌بندی، خروجی اکسل...) را انجام می‌دهد. dashboard.js هر چند ثانیه APIها را فراخوانی می‌کند.',
+  arch:[1020,1080,230,60], depCol:10},
+ {id:'http_scrape',cat:'protocol',title:'HTTP Scraping',sub:'TopAccess / Remote UI',file:'core/collectors/{toshiba,canon}.py → _scrape_*',
+  desc:'وقتی SNMP تونر را نمی‌دهد، رابط وب خود پرینتر (Toshiba TopAccess، Canon Remote UI) خوانده و درصد تونر استخراج می‌شود.',
+  arch:[620,200,250,66], depCol:10},
+ /* --- protocol --- */
+ {id:'protocol',cat:'protocol',title:'core/snmp/protocol.py',sub:'SNMP v1/v2c · UDP/161 · fallback',file:'core/snmp/protocol.py',
+  desc:'پیاده‌سازی خام SNMP v1/v2c روی UDP/161: ساخت و پارس PDU، timeout/retry، کش کردن نسخه‌ی SNMP هر IP و fallback خودکار از v2c به v1 برای دستگاه‌های قدیمی.',
+  arch:[50,200,300,66], depCol:4},
+ {id:'oid_map',cat:'protocol',title:'core/snmp/oid_map.py',sub:'نگاشت OIDهای vendor',file:'core/snmp/oid_map.py',
+  desc:'نگاشت OIDهای اختصاصی vendor (به‌ویژه Toshiba) و mapهای وضعیت کاغذ/تونر که collectorها از آن استفاده می‌کنند.',
+  arch:[380,200,210,66], depCol:4},
+ /* --- collectors --- */
+ {id:'poller',cat:'collect',title:'core/poller.py',sub:'حلقه polling (هر ۶۰ ثانیه)',file:'core/poller.py',
+  desc:'قلب مانیتورینگ: هر ۶۰ ثانیه روی همه‌ی دستگاه‌ها poll می‌زند (با قفل جداگانه برای هر IP). اول enhanced_collector اجرا می‌شود و در صورت نقص، collector اختصاصی برند. آفلاین فقط پس از ۲ شکست متوالی اعلام می‌شود تا قطعی لحظه‌ای، آفلاین کاذب نسازد.',
+  arch:[50,365,200,70], depCol:2},
+ {id:'enhanced',cat:'collect',title:'core/enhanced_collector.py',sub:'مسیر اصلی جمع‌آوری',file:'core/enhanced_collector.py',
+  desc:'مسیر اصلی جمع‌آوری برای همه‌ی برندها: MIB-2 + Host Resources + Printer MIB + OIDهای vendor. کانترها، supplies، سینی‌ها، مدل/سریال. واحدهای تونر (درصد، کد گسسته‌ی Canon، sentinel -2/-3) را هم مدیریت می‌کند.',
+  arch:[280,365,250,70], depCol:2},
+ {id:'toshiba',cat:'collect',title:'collectors/toshiba.py',sub:'',file:'core/collectors/toshiba.py',
+  desc:'Toshiba e-STUDIO: OIDهای اختصاصی (۲۰۷/۲۰۸/۲۰۹/۲۱۰...)، تفکیک A3/A4، رویداد twin، scrape تونر از TopAccess و سینی‌ها.',
+  arch:[560,340,165,40], depCol:3},
+ {id:'hp',cat:'collect',title:'collectors/hp.py',sub:'',file:'core/collectors/hp.py',
+  desc:'HP: مسیر شمارنده/تونر اختصاصی (JetDirect و FutureSmart مثل M527/E52645) + fallback.',
+  arch:[735,340,140,40], depCol:3},
+ {id:'canon',cat:'collect',title:'collectors/canon.py',sub:'',file:'core/collectors/canon.py',
+  desc:'Canon MF/LBP: شمارنده‌ها و تونر؛ برای مدل‌هایی مثل LBP233dw که کد گسسته می‌دهند، در صورت لزوم از Remote UI هم scrape می‌شود.',
+  arch:[885,340,150,40], depCol:3},
+ {id:'brother',cat:'collect',title:'collectors/brother.py',sub:'',file:'core/collectors/brother.py',
+  desc:'Brother: تونر/درام و fallback برای مدل‌های سری NC.',
+  arch:[1045,340,150,40], depCol:3},
+ {id:'sensor',cat:'collect',title:'collectors/sensor.py',sub:'',file:'core/collectors/sensor.py',
+  desc:'ECS100G: خواندن دما/رطوبت با SNMP و ثبت sensor_readings + رویداد SENSOR_CHANGE.',
+  arch:[1205,340,170,40], depCol:3},
+ {id:'cbase',cat:'collect',title:'core/collectors/base.py',sub:'رویداد چاپ · A3/A4 · تونر',file:'core/collectors/base.py',
+  desc:'توابع مشترک collectorها: _counters_event (تشخیص چاپ واقعی در برابر ریست/افت/اورفلو/ناهنجاری)، attribute_paper_size (تفکیک A3/A4 با چرخه‌ی تطبیق) و محاسبات تونر و pages_since_last_reset.',
+  arch:[560,400,330,64], depCol:3},
+ {id:'cbenh',cat:'collect',title:'base_enhanced.py',sub:'',file:'core/collectors/base_enhanced.py',
+  desc:'پل سازگاری: collect_enhanced را از enhanced_collector دوباره export می‌کند تا مسیر import پایدار بماند.',
+  arch:null, depCol:3},
+ {id:'scanner',cat:'collect',title:'core/oid/scanner.py',sub:'اسکن startup + هفتگی',file:'core/oid/scanner.py',
+  desc:'در startup و به‌صورت هفتگی، OIDهای شناخته‌شده را روی هر IP می‌خواند و profile می‌سازد؛ برای سازگاری مدل‌ها و دیباگ.',
+  arch:[910,400,210,64], depCol:5},
+ {id:'oidcat',cat:'collect',title:'oid/catalog.py + validator.py',sub:'کاتالوگ و اعتبارسنجی OID',file:'core/oid/{catalog,validator}.py',
+  desc:'کاتالوگ OIDهای شناخته‌شده و اعتبارسنجی مقادیرشان؛ خطاها در oid_validation_errors.txt ثبت می‌شوند.',
+  arch:[1130,400,220,64], depCol:null},
+ {id:'classifier',cat:'collect',title:'core/device_classifier.py',sub:'طبقه‌بندی دستگاه',file:'core/device_classifier.py',
+  desc:'طبقه‌بندی نوع دستگاه بر اساس OIDهای اسکن‌شده تا مسیر جمع‌آوری درست (پرینتر/سنسور، برند) انتخاب شود.',
+  arch:[1360,400,190,64], depCol:2},
+ {id:'catalog',cat:'collect',title:'catalog.py',sub:'',file:'core/oid/catalog.py',desc:'کاتالوگ OIDهای شناخته‌شده و توضیحاتشان.',arch:null,depCol:5},
+ {id:'validator',cat:'collect',title:'validator.py',sub:'',file:'core/oid/validator.py',desc:'اعتبارسنجی مقادیر OID و ثبت خطاها.',arch:null,depCol:5},
+ /* --- core state --- */
+ {id:'store',cat:'core',title:'core/store.py',sub:'state زنده + PrevStore',file:'core/store.py',
+  desc:'حافظه‌ی زنده‌ی برنامه: لیست PRINTERS (از printers.json)، آخرین داده‌ی هر دستگاه (printer_data) و PrevStore برای مقایسه‌ی snapshot قبلی/فعلی که تشخیص چاپ و ریست بر اساس آن است.',
+  arch:[50,620,220,64], depCol:2},
+ {id:'yield',cat:'core',title:'core/yield_engine.py',sub:'یادگیری yield + کاتالوگ',file:'core/yield_engine.py',
+  desc:'Yield Engine: یادگیری خودکار yield_per_page از روی resetها و تاریخچه، روش anchor-based برای پرینترهای کم‌مصرف، اشتراک yield بین کارتریج‌های مشابه، و fallback به کاتالوگ ظرفیت.',
+  arch:[290,620,230,64], depCol:2},
+ {id:'groups',cat:'core',title:'core/groups.py',sub:'گروه‌های سفارشی',file:'core/groups.py',
+  desc:'CRUD گروه‌های سفارشی پرینتر با id پایدار؛ ذخیره در groups.json. گروه حتی بدون پرینتر هم باقی می‌ماند.',
+  arch:[540,620,170,64], depCol:2},
+ {id:'audit',cat:'core',title:'core/security_audit.py',sub:'لاگ امنیتی',file:'core/security_audit.py',
+  desc:'ثبت و بازیابی رویدادهای امنیتی (ورود موفق/ناموفق، خروج، فعالیت مشکوک) داخل logs.db و تغذیه‌ی داشبورد امنیت.',
+  arch:[730,620,200,64], depCol:2},
+ /* --- data --- */
+ {id:'db',cat:'data',title:'core/database.py',sub:'لایه SQLite',file:'core/database.py',
+  desc:'لایه‌ی دیتابیس: جداول لاگ رویدادها، کاربران، کانترها، toner history، reset history و sensor_readings؛ تابع add_event که همه‌ی collectorها با آن رویداد ثبت می‌کنند، و prune خودکار لاگ‌های قدیمی.',
+  arch:null, depCol:2},
+ {id:'dbfile',cat:'data',title:'logs.db (SQLite)',sub:'لاگ‌ها · کاربران · کانترها',file:'logs.db (runtime)',
+  desc:'فایل دیتابیس SQLite در runtime: رویدادها/لاگ‌ها، کاربران، کانترهای هر پرینتر، تاریخچه‌ی تونر و reset و خوانش‌های سنسور.',
+  arch:[50,760,240,60], depCol:9},
+ {id:'prjson',cat:'data',title:'printers.json',sub:'لیست و تنظیمات پرینترها',file:'printers.json (runtime)',
+  desc:'لیست پرینترها و تنظیمات هرکدام (نام، community، گروه...) که store.py می‌خواند و به‌روز می‌کند.',
+  arch:[320,760,150,60], depCol:9},
+ {id:'grjson',cat:'data',title:'groups.json',sub:'گروه‌های سفارشی',file:'groups.json (runtime)',
+  desc:'فایل گروه‌های سفارشی کاربر (با id پایدار، آیکون و رنگ).',
+  arch:[490,760,140,60], depCol:9},
+ {id:'oidjson',cat:'data',title:'oid_profiles.json',sub:'نتیجه اسکن OIDها',file:'oid_profiles.json (runtime)',
+  desc:'پروفایل OIDهای هر IP؛ خروجی scanner.py برای اعتبارسنجی و سازگاری مدل‌ها.',
+  arch:[650,760,170,60], depCol:9},
+ {id:'ycat',cat:'data',title:'cartridge_yield_catalog.json',sub:'ظرفیت اسمی کارتریج‌ها',file:'cartridge_yield_catalog.json',
+  desc:'کاتالوگ ظرفیت ۳۰+ کارتریج با چهار حالت oem/compatible/refill/local (پیش‌فرض: local) تا به‌جای fallback خام ۲۰۰۰ صفحه، ظرفیت واقع‌بینانه استفاده شود.',
+  arch:[840,760,230,60], depCol:9},
+ /* --- ui --- */
+ {id:'tpl',cat:'ui',title:'web/templates/*.html',sub:'۹ قالب Jinja2',file:'web/templates/',
+  desc:'قالب‌های Jinja2: base، داشبورد، ورود/ثبت‌نام/ریست رمز، کاربران و امنیت؛ توسط روت‌ها رندر می‌شوند.',
+  arch:[50,1080,300,60], depCol:8},
+ {id:'dashjs',cat:'ui',title:'web/static/js/dashboard.js',sub:'منطق اصلی UI',file:'web/static/js/dashboard.js',
+  desc:'منطق اصلی فرانت‌اند: فراخوانی دوره‌ای /api/printers، رندر کارت‌ها/نمودار/گروه‌ها، مودال‌ها، toner reset، Drag&Drop کارت‌ها و toastها.',
+  arch:[380,1080,350,60], depCol:8},
+ {id:'css',cat:'ui',title:'web/static/css/style.css',sub:'استایل + تم دارک/لایت',file:'web/static/css/style.css',
+  desc:'استایل کامل پروژه، تم دارک/لایت و چیدمان RTL.',
+  arch:[760,1080,190,60], depCol:8},
+ {id:'libs',cat:'ui',title:'Sortable + Chart.js + legacy',sub:'کتابخانه‌ها',file:'web/static/js/{Sortable.min,chart.umd.min,legacy-mode}.js',
+  desc:'کتابخانه‌های بومی‌شده: Sortable برای Drag&Drop کارت‌ها، Chart.js برای نمودارها و legacy-mode.js.',
+  arch:null, depCol:8},
+ /* --- tool --- */
+ {id:'tests',cat:'tool',title:'tests/ (۵۹ تست)',sub:'pytest — ۷ مجموعه',file:'tests/',
+  desc:'۵۹ تست خودکار pytest: منطق رویداد چاپ، تفکیک A3/A4، شبیه‌سازی End-to-End روی پرینتر مجازی (۱۳ سناریو)، تحمل قطعی لحظه‌ای، تونر سه مدل Canon/HP، گروه‌ها و Yield Engine.',
+  arch:null, depCol:10},
+ {id:'diag',cat:'tool',title:'tools/diagnose_printer.py',sub:'دامپ خام یک پرینتر',file:'tools/diagnose_printer.py',
+  desc:'ابزار عیب‌یابی: دامپ خام SNMP (سیستم/کانترها/supplies) و صفحات وب یک دستگاه در فایل diagnose_<ip>.md تا پشتیبانی مدل‌های جدید دقیق اضافه شود.',
+  arch:null, depCol:10}
+];
+
+/* --- نمای وابستگی: ستون‌های اضافی برای فایل‌های دقیق --- */
+const DEP_EXTRA = []; // (همه در NODES با depCol آمده‌اند)
+
+const ZONES = [
+ {x:20,y:20,w:1730,h:120, t:'۱ | دستگاه‌ها و سرویس‌های بیرونی'},
+ {x:20,y:170,w:1730,h:120,t:'۲ | لایه‌ی شبکه — SNMP (UDP/161) و HTTP'},
+ {x:20,y:320,w:1730,h:200,t:'۳ | جمع‌آوری: Poller + Collectorها'},
+ {x:20,y:545,w:1730,h:165,t:'۴ | پردازش، وضعیت زنده و هوش (Yield/Audit/Groups)'},
+ {x:20,y:730,w:1730,h:115,t:'۵ | ذخیره‌سازی: SQLite و فایل‌های JSON'},
+ {x:20,y:870,w:1730,h:130,t:'۶ | لایه‌ی وب — Flask، احراز هویت و APIها'},
+ {x:20,y:1020,w:1730,h:140,t:'۷ | رابط کاربری — قالب‌ها، JS و مرورگر'}
+];
+
+/* یال‌های نمای معماری: [from, to, label] — جهت = مسیر حرکت داده */
+const EDGES_ARCH = [
+ ['dev_printers','protocol','SNMP GET · UDP/161'],
+ ['dev_sensor','protocol','SNMP v1'],
+ ['dev_printers','http_scrape','صفحات وب'],
+ ['poller','enhanced','مسیر اصلی'],
+ ['poller','toshiba','fallback برند'],
+ ['poller','sensor','سنسور'],
+ ['enhanced','protocol',''],
+ ['toshiba','protocol',''],
+ ['sensor','protocol',''],
+ ['toshiba','http_scrape',''],
+ ['canon','http_scrape',''],
+ ['enhanced','cbase','کانتر/تونر'],
+ ['toshiba','cbase',''],
+ ['cbase','store','state زنده'],
+ ['cbase','dbfile','add_event'],
+ ['sensor','dbfile','sensor_readings'],
+ ['store','prjson','خواندن/نوشتن'],
+ ['yield','dbfile','نمونه‌های یادگیری'],
+ ['yield','ycat','ظرفیت اسمی'],
+ ['groups','grjson',''],
+ ['scanner','oidjson','profile'],
+ ['scanner','protocol',''],
+ ['scanner','classifier',''],
+ ['scanner','oidcat','اعتبارسنجی'],
+ ['oid_map','enhanced','OIDها'],
+ ['run','poller','شروع loop'],
+ ['run','scanner','startup'],
+ ['run','dbfile','init_db'],
+ ['run','wapp','create_app'],
+ ['wapp','auth','auth'],
+ ['wapp','wsec','middleware'],
+ ['auth','models',''],
+ ['auth','utils',''],
+ ['utils','svc_smtp',''],
+ ['utils','svc_recap','تایید ربات'],
+ ['auth','svc_google',''],
+ ['wapp','r_api','blueprint'],
+ ['wapp','r_adm','blueprint'],
+ ['wapp','r_rep','blueprint'],
+ ['wapp','r_scan','blueprint'],
+ ['r_api','store','read/write'],
+ ['r_api','dbfile',''],
+ ['r_adm','models','users'],
+ ['r_adm','audit',''],
+ ['r_adm','yield',''],
+ ['r_rep','dbfile',''],
+ ['r_scan','scanner',''],
+ ['r_scan','cbase','validation'],
+ ['wapp','tpl','render'],
+ ['browser','r_api','fetch /api'],
+ ['browser','auth','login/forms'],
+ ['browser','r_rep','دانلود خروجی']
+];
+
+/* یال‌های نمای وابستگی: {a,b,k} — k: imp(عادی) rw(فایل) http render test */
+const E=(a,b,k,l)=>({a,b,k:k||'imp',l:l||''});
+const EDGES_DEP = [
+ /* root */
+ E('run','cfg'),E('run','db'),E('run','store'),E('run','poller'),E('run','scanner'),E('run','wapp'),
+ E('models','db'),E('utils','cfg'),E('cadmin','cfg'),E('cadmin','db'),E('cadmin','models'),
+ /* core */
+ E('db','cfg'),E('db','dbfile','rw'),
+ E('store','cfg'),E('store','db'),E('store','prjson','rw'),
+ E('poller','cfg'),E('poller','store'),E('poller','db'),E('poller','protocol'),E('poller','oid_map'),
+ E('poller','cbase'),E('poller','cbenh'),E('poller','toshiba'),E('poller','hp'),E('poller','canon'),E('poller','brother'),E('poller','sensor'),
+ E('enhanced','cfg'),E('enhanced','protocol'),E('enhanced','oid_map'),E('enhanced','store'),E('enhanced','cbase'),E('enhanced','db'),
+ E('yield','db'),E('yield','ycat','rw'),
+ E('groups','grjson','rw'),
+ E('audit','cfg'),E('audit','dbfile','rw'),
+ E('classifier','cfg'),E('classifier','protocol'),
+ /* collectors */
+ E('cbase','cfg'),E('cbase','protocol'),E('cbase','store'),E('cbase','db'),
+ E('cbenh','enhanced'),
+ E('toshiba','protocol'),E('toshiba','oid_map'),E('toshiba','cbase'),E('toshiba','store'),E('toshiba','db'),E('toshiba','cfg'),E('toshiba','dev_printers','http','HTTP scrape'),
+ E('hp','protocol'),E('hp','cbase'),E('hp','store'),
+ E('canon','protocol'),E('canon','cbase'),E('canon','store'),E('canon','dev_printers','http','HTTP scrape'),
+ E('brother','cbase'),E('brother','store'),
+ E('sensor','protocol'),E('sensor','store'),E('sensor','db'),
+ /* snmp */
+ E('protocol','dev_printers','imp','SNMP UDP/161'),E('protocol','dev_sensor','imp','SNMP'),
+ /* oid */
+ E('scanner','cfg'),E('scanner','protocol'),E('scanner','cbase'),E('scanner','catalog'),E('scanner','validator'),E('scanner','classifier'),E('scanner','store'),E('scanner','oidjson','rw'),
+ E('validator','cfg'),E('catalog','cfg'),
+ /* web app & auth */
+ E('wapp','rdash','render'),E('wapp','rprint','render'),E('wapp','rlogs','render'),E('wapp','rexport','render'),
+ E('wapp','rscan','render'),E('wapp','rdisc','render'),E('wapp','rstats','render'),E('wapp','rvalid','render'),
+ E('wapp','rsys','render'),E('wapp','rusers','render'),E('wapp','rsec','render'),E('wapp','rgroups','render'),
+ E('wapp','rimport','render'),E('wapp','ryield','render'),E('wapp','auth'),E('wapp','wsec'),
+ E('auth','cfg'),E('auth','models'),E('auth','utils'),E('auth','wsec'),E('auth','audit'),
+ E('auth','svc_google','http'),E('utils','svc_smtp','http'),E('utils','svc_recap','http'),
+ E('wsec','cfg'),
+ /* routes */
+ E('rdash','cfg'),E('rdash','tpl','render'),
+ E('rprint','store'),E('rprint','db'),E('rprint','poller'),E('rprint','scanner'),E('rprint','cfg'),E('rprint','auth'),
+ E('rlogs','db'),E('rlogs','store'),E('rlogs','auth'),
+ E('rexport','store'),E('rexport','db'),E('rexport','auth'),
+ E('rdisc','protocol'),
+ E('rscan','scanner'),E('rscan','catalog'),E('rscan','validator'),E('rscan','store'),
+ E('rstats','cfg'),E('rstats','store'),E('rstats','dbfile','rw'),
+ E('rsys','store'),E('rsys','cfg'),
+ E('rsec','auth'),E('rsec','audit'),
+ E('rusers','models'),E('rusers','auth'),E('rusers','utils'),
+ E('rvalid','store'),E('rvalid','cbase'),E('rvalid','scanner'),E('rvalid','validator'),
+ E('rgroups','store'),E('rgroups','groups'),
+ E('rimport','auth'),E('rimport','db'),E('rimport','cfg'),E('rimport','dbfile','rw'),
+ E('ryield','yield'),E('ryield','auth'),
+ /* ui → api */
+ E('dashjs','rprint','http','/api/printers'),E('dashjs','rlogs','http','/api/logs'),E('dashjs','rstats','http','/api/stats'),
+ E('dashjs','rsys','http','/api/status'),E('dashjs','rgroups','http','/api/groups'),E('dashjs','rexport','http','/api/export'),
+ E('dashjs','browser','render'),E('tpl','browser','render'),E('css','browser','render'),E('libs','browser','render'),
+ E('browser','wapp','http','HTTP'),
+ /* tests & tools */
+ E('tests','poller','test'),E('tests','cbase','test'),E('tests','enhanced','test'),E('tests','yield','test'),
+ E('tests','groups','test'),E('tests','store','test'),
+ E('diag','protocol','test'),E('diag','dev_printers','http')
+];
+
+/* ====== نمای جریان داده — ۱۳ مرحله ====== */
+const FLOW = [
+ {n:1, cat:'entry', t:'🚀 راه‌اندازی — run.py',
+  b:'برنامه با python run.py بالا می‌آید: دیتابیس init می‌شود، app فلسک ساخته می‌شود و threadها (poll فوری، حلقه‌ی ۶۰ ثانیه‌ای، اسکن هفتگی، cleanup) استارت می‌خورند.',
+  x:40,  y:40},
+ {n:2, cat:'core', t:'🧾 بارگذاری لیست — store.py',
+  b:'store.py فایل printers.json را می‌خواند و لیست PRINTERS را در حافظه نگه می‌دارد؛ PrevStore هم آخرین snapshot هر دستگاه را حفظ می‌کند تا مقایسه‌ی قبلی/فعلی ممکن شود.',
+  x:460, y:40},
+ {n:3, cat:'collect', t:'🔁 حلقه‌ی Polling — poller.py',
+  b:'هر ۶۰ ثانیه (POLL_INTERVAL) روی همه‌ی IPها poll زده می‌شود؛ هر IP قفل جدا دارد تا دو poll هم‌زمان روی یک دستگاه اجرا نشود.',
+  x:880, y:40},
+ {n:4, cat:'collect', t:'🏷️ تشخیص نوع دستگاه',
+  b:'بر اساس OIDها (detect_brand در base.py و device_classifier) مشخص می‌شود دستگاه پرینتر است یا سنسور ECS100G و برندش چیست (Toshiba/HP/Canon/Brother).',
+  x:1300,y:40},
+ {n:5, cat:'protocol', t:'📡 SNMP GET — protocol.py',
+  b:'درخواست SNMP روی UDP/161 ارسال می‌شود؛ اول v2c و در صورت شکست، خودکار v1. نسخه‌ی هر IP کش می‌شود تا pollهای بعدی سریع باشند.',
+  x:40,  y:230},
+ {n:6, cat:'collect', t:'🧰 مسیر اصلی — enhanced_collector.py',
+  b:'Generic MIB-2 + Host Resources + Printer MIB + OIDهای vendor: کانترها، supplies (تونر/دولوپر/درام)، سینی‌ها، مدل و سریال خوانده می‌شود. واحدهای تونر (درصد، کد گسسته‌ی Canon 0/5/7، sentinel -2/-3) هم اینجا نرمال می‌شوند.',
+  x:460, y:230},
+ {n:7, cat:'collect', t:'🔄 Fallback برند + HTTP scrape',
+  b:'اگر مسیر اصلی ناقص بود: collector اختصاصی برند (toshiba/hp/canon/brother) اجرا می‌شود؛ و اگر SNMP تونر نداشت، رابط وب دستگاه (TopAccess / Remote UI) scrape می‌شود.',
+  x:880, y:230},
+ {n:8, cat:'core', t:'⚙️ فیلتر صحت — _counters_event',
+  b:'base.py مقادیر جدید را با PrevStore مقایسه می‌کند: اولین poll فقط مبنا می‌شود؛ ریست (COUNTER_RESET)، افت (COUNTER_DROP)، جهش غیرواقعی (PRINT_OVERFLOW) و ناهنجاری (COUNTER_ANOMALY) شناسایی می‌شوند تا لاگ غلط تولید نشود.',
+  x:1300,y:230},
+ {n:9, cat:'core', t:'📄 تفکیک کاغذ — attribute_paper_size',
+  b:'با چرخه‌ی تطبیق snapshotها، اختلاف کانتر بزرگ (A3/B4) و کوچک (A4/A5) به هر رویداد چاپ نسبت داده می‌شود؛ اگر شمارنده‌ی فرعی عقب مانده باشد، پرچم lag زده می‌شود تا لاگ صادقانه بماند.',
+  x:40,  y:420},
+ {n:10, cat:'core', t:'🎨 تونر — yield_engine + کاتالوگ',
+  b:'درصد/وضعیت کارتریج محاسبه و با منابع ظرفیت ترکیب می‌شود: اول auto_learn (یادگیری از resetها)، بعد device_capacity، بعد کاتالوگ cartridge_yield_catalog.json و در آخر مقدار پیش‌فرض.',
+  x:460, y:420},
+ {n:11, cat:'data', t:'💾 ذخیره‌سازی — store + logs.db',
+  b:'نتیجه‌ی نهایی دو جا می‌رود: حافظه‌ی زنده (store.printer_data برای APIها) و دیتابیس (database.add_event → logs.db) برای تاریخچه و گزارش‌گیری.',
+  x:880, y:420},
+ {n:12, cat:'web', t:'🌐 APIها — web/routes/*',
+  b:'روت‌های فلسک (با احراز هویت و محدودیت دفتر/ماژول) داده را از store و logs.db می‌خوانند و JSON برمی‌گردانند: /api/printers، /api/logs/all، /api/stats/daily و ...',
+  x:1300,y:420},
+ {n:13, cat:'ui', t:'🖥️ نمایش — dashboard.js',
+  b:'فرانت‌اند هر چند ثانیه /api/printers را fetch می‌کند و کارت‌ها، نمودارها (Chart.js)، گروه‌ها و هشدارها را رندر/به‌روز می‌کند؛ اکشن‌های کاربر (ریست تونر، گروه، خروجی اکسل) هم از همین مسیر به API برمی‌گردد.',
+  x:460, y:600}
+];
+const FLOW_SUB = [
+ {cat:'protocol', t:'🌡️ جریان فرعی: سنسور ECS100G', b:'sensor.py در هر سیکل دما/رطوبت را می‌خواند → جدول sensor_readings + رویداد SENSOR_CHANGE (تغییر ≥۱°C یا ≥۵٪).', x:40,  y:600},
+ {cat:'collect', t:'🛰️ جریان فرعی: اسکن OID', b:'scanner.py در startup و هر هفته OIDها را اسکن می‌کند → oid_profiles.json + device_classifier (برای سازگاری مدل‌ها).', x:880, y:600},
+ {cat:'web', t:'👤 جریان فرعی: اکشن‌های کاربر', b:'افزودن پرینتر، ریست تونر، گروه‌بندی، مدیریت کاربران و خروجی اکسل → routes/* → store/database (با CSRF + rate limit).', x:1300,y:600}
+];
+
+
+/* ====== محتوای سورس هر فایل (توضیح بولتی برای پنل جزئیات) ====== */
+const CODE_CONTENT = {
+ run:['خط ۳۰: خواندن پورت از ENV با پیش‌فرض <code>FLASK_PORT=5053</code>',
+  '<code>main()</code> — لاگ‌نویسی، <code>init_db()</code>، ساخت app با <code>create_app()</code>، و شروع ۵ thread: <code>poll-init</code>، <code>polling_loop</code>، <code>weekly_scan_loop</code>، <code>cleanup_loop</code> و <code>clear_terminal_loop</code>؛ در پایان <code>app.run(host="0.0.0.0")</code>',
+  '<code>signal_handler()</code> — خاموش‌شدن تمیز با Ctrl+C (stop_event)', '<code>cleanup_loop()</code> — حذف دوره‌ای لاگ‌های PRINT قدیمی با <code>prune_old_print_logs()</code>'],
+ cadmin:['<code>main()</code> — خواندن username/email/رمز از ورودی استاندارد، ساخت کاربر جدید یا ارتقای نقش کاربر موجود به <code>admin</code>؛ از <code>models.User</code> و <code>init_db()</code> استفاده می‌کند'],
+ cfg:['بدون تابع — فقط ثابت‌ها و خواندن ENV: <code>PRINTERS_FILE</code>، <code>DB_PATH</code>، <code>OID_PROFILES_FILE</code>، <code>POLL_INTERVAL=60</code>، <code>FLASK_PORT=5053</code>، <code>SNMP_PORT=161</code>',
+  '<code>TONER_ALERT_THRESHOLDS</code>، <code>OFFICE_SUBNETS</code> (قابل override با ENV)، <code>SECRET_KEY</code> و کلیدهای ایمیل/OAuth/reCAPTCHA، و جلوگیری از کلید ناامن پیش‌فرض در production'],
+ models:['کلاس <code>User(UserMixin)</code> — فیلدها: id، username، email، role، verified، allowed_offices، allowed_modules',
+  '<code>set_password()</code> با <code>bcrypt.hashpw()</code> و <code>verify_password()</code> با <code>bcrypt.checkpw()</code>؛ خواندن/نوشتن رکورد کاربر با توابع core.database'],
+ utils:['<code>make_serializer()</code> و <code>generate/verify_reset_token()</code> — توکن ریست رمز امضاشده (itsdangerous) با انقضای ۱ساعته',
+  '<code>hash_token()</code> — SHA-256 برای ذخیره امن توکن؛ <code>verify_recaptcha()</code> — POST به siteverify گوگل؛ <code>send_email()</code> — SMTP با TLS'],
+ db:['<code>db_connection()</code> — کانتکست‌منیجر SQLite با timeout؛ <code>init_db()</code> — ساخت همه‌ی جدول‌ها: logs، users، printer_counters، toner_history، reset_history، sensor_readings، security_events و جدول‌های yield',
+  '<code>add_event()</code> — نقطه‌ی واحد ثبت رویداد (PRINT/STATUS/ALERT/REFILL/SERVICE/SENSOR_CHANGE) با details به‌صورت JSON؛ توابع خواندن لاگ: <code>get_log</code>، <code>get_all_logs</code>، <code>clear_logs</code>، <code>prune_old_print_logs</code>',
+  'مدیریت کامل کاربران: <code>create_user</code>، <code>list_users</code>، <code>update_user_role/verified/access</code>، <code>delete_user</code>؛ helperهای <code>_dump_json_list</code>/<code>_load_json_list</code> برای ستون‌های JSON'],
+ poller:['<code>collect()</code> → <code>_collect_inner()</code> — مسیر اصلی: اول <code>collect_enhanced</code>، در صورت نقص fallback به <code>collect_toshiba/hp/canon/brother</code> و برای ECS100G به <code>collect_sensor</code>',
+  '<code>_note_health_failure()</code>/<code>_reset_health_failure()</code> — وضعیت «آفلاین» فقط بعد از ۲ شکست متوالی (grace)؛ <code>_get_ip_lock()</code> — قفل جدا برای هر IP ضد poll هم‌زمان؛ <code>_probe_snmp_agent_reachable()</code> — پروب سریع سلامت',
+  '<code>poll_all()</code> — یک دور روی همه‌ی PRINTERS؛ <code>polling_loop()</code> — حلقه‌ی بی‌نهایت با خواب POLL_INTERVAL و ثبت نتیجه در store'],
+ store:['کلاس <code>PrevStore</code> — snapshot قبلی هر دستگاه (کانترها، uptime، سطوح تونر، paper split، پرچم‌های <code>a3_lagged/a4_lagged</code>، زمان آخرین رویداد) با merge امن پیش‌فرض‌ها',
+  '<code>load_printers()</code>/<code>save_printers()</code> — خواندن/نوشتن <code>printers.json</code> با <code>_normalize_printer</code> و <code>_deduplicate_printers</code>؛ دیکشنری‌های سراسری <code>PRINTERS</code>، <code>printer_data</code> و <code>poll_stats</code>'],
+ enhanced:['<code>collect_enhanced()</code> — ارکستر: خواندن مدل/سریال/uptime، کانترها، supplies، سینی‌ها و ذخیره در store و db',
+  '<code>walk_supplies_table()</code> — پیمایش Printer MIB و تشخیص واحد هر supply: درصد مستقیم (unit=19)، کد گسسته‌ی Canon (۰/۵/۷)، sentinelهای RFC (‑3=unknown/‑2=نامشخص)؛ <code>try_alternative_oids()</code> — نقشه‌ی HP (NPCL) بدون حساسیت به حروف بزرگ',
+  '<code>walk_input_trays()</code> — سینی‌های کاغذ؛ <code>_read_toshiba_value()</code>/<code>_collect_toshiba_job_data()</code> — کانترهای اختصاصی Toshiba؛ <code>detect_printer_type_from_supplies()</code> و <code>_canon_display_percent()</code> — درصد نمایشی امن برای کانن'],
+ yield:['<code>build_cartridge_key()</code> — کلید یکتای «مدل‌پرینتر+نام‌کارتریج+رنگ» برای اشتراک yield؛ <code>ensure_yield_tables()</code> — ساخت جداول state/snapshots/samples/profiles',
+  '<code>_load_yield_catalog()/_catalog_lookup()</code> — خواندن <code>cartridge_yield_catalog.json</code> و انتخاب مقدار بر اساس mode (local=&zwnj;پیش‌فرض | oem | compatible | refill) و ضریب CARTRIDGE_YIELD_FACTOR',
+  '<code>_record_snapshot()/_record_sample()</code> — ذخیره‌ی نمونه‌های یادگیری؛ <code>_compute_usage_counter()</code> — انتخاب کانتر مصرفی هر رنگ؛ یادگیری anchor-based برای مصرف‌های کوچک و گزارش <code>get_yield_status()/write_yield_status_report()</code>'],
+ groups:['<code>_slugify()</code> — ساخت id پایدار و امن از نام فارسی/لاتین؛ <code>load_groups()/save_groups()</code> — خواندن/نوشتن <code>groups.json</code>',
+  '<code>create_group()/rename_group()/delete_group()</code> — با اعتبارسنجی نام، انتخاب خودکار آیکون/رنگ و فیلدهای created_at/updated_at'],
+ audit:['enumهای <code>Severity</code> (info/warning/critical) و <code>SecurityEvent</code> (login، login_failed، logout، lockout و...)؛ <code>init_security_audit()</code> — ساخت جدول security_events',
+  '<code>log_security_event()</code> — ثبت رویداد با ip کاربر و user-agent؛ <code>count_recent_failed_logins()</code> — مبنای قفل‌کردن/هشدار؛ <code>get_recent_events()</code> با فیلتر؛ <code>cleanup_old_events(90)</code>'],
+ classifier:['<code>_walk_supplies()</code> — پیمایش محدود supplies برای تشخیص؛ <code>classify_device_detailed()</code> — تشخیص مستقیم از SNMP',
+  '<code>classify_from_scan()</code> — تصمیم‌گیری نوع دستگاه از روی OIDهای فعال اسکن‌شده (پرینتر/سنسور/برند)'],
+ cbase:['ثابت‌های آستانه: <code>MAX_REASONABLE_DELTA</code> (دینامیک نسبت به POLL_INTERVAL)، <code>MAX_TOTAL_AFTER_RESET=5000</code>، <code>MIN_VALID_TOTAL_FOR_FIRST_POLL=50</code>؛ helperهای <code>si()</code>/<code>ss()</code>/<code>_g()</code>',
+  '<code>_counters_event()</code> — قلب تصمیم‌گیری: اولین poll فقط baseline؛ سپس تشخیص چاپ واقعی در برابر <code>COUNTER_RESET</code>/<code>COUNTER_DROP</code>/<code>PRINT_OVERFLOW</code>/<code>COUNTER_ANOMALY</code> و مدیریت <code>PRINT_GAP</code>',
+  '<code>attribute_paper_size()</code> — نسبت‌دادن A3/A4 با چرخه‌ی تطبیق دلتا و پرچم lag؛ <code>get_pages_since_last_reset()/apply_toner_override()</code> — ریست دستی تونر؛ <code>_learn_yield_per_page()</code> — تغذیه‌ی Yield Engine؛ <code>validate_counter_consistency()/detect_brand()</code>'],
+ cbenh:['فقط یک خط: <code>from core.enhanced_collector import collect_enhanced</code> — پل سازگاری تا import از مسیر collectors پایدار بماند'],
+ toshiba:['<code>NE_LEVEL</code> — نگاشت کدهای وضعیت تونر Toshiba به درصد؛ کش ۵دقیقه‌ای تونر (<code>_TONER_CACHE_TTL</code>)',
+  '<code>_scrape_toshiba_toners()</code> — پارس صفحات TopAccess برای تونر وقتی SNMP نمی‌دهد؛ <code>_walk_toner_remaining()</code> — fallback SNMP',
+  '<code>collect_toshiba()</code> — کانترهای vendor (۲۰۷=کلاس بزرگ A3/B4، ۲۰۸=کلاس کوچک، ۲۰۹/۲۱۰=زیرشمارنده job، ۲۲۷=نامشخص)، رویداد twin و سینی‌ها؛ در پایان <code>_counters_event</code> و <code>attribute_paper_size</code>'],
+ hp:['<code>_HP_TONER_COLOR_MAP/_hp_toner_key()</code> — نرمال‌سازی نام کارتریج به رنگ/مدل', '<code>collect_hp()</code> — OIDهای JetDirect/FutureSmart برای کانتر و تونر + ذخیره در store و ثبت رویداد از طریق <code>_counters_event</code>'],
+ canon:['<code>_scrape_canon_toners()</code> — تلاش چند مسیر Remote UI ‏(<code>/status.html</code>، <code>/supply.html</code> و...) با regex منعطف برای استخراج درصد تونر',
+  '<code>collect_canon()</code> — کانترها/تونر مدل‌های MF و LBP؛ برای مدل‌هایی مثل LBP233dw که کد گسسته می‌دهند، enhanced مسیر اصلی است و این fallback remains'],
+ brother:['<code>_BRO_TONER_COLOR_MAP/_bro_toner_key()</code> — نگاشت نام‌های تونر Brother به رنگ/مدل', '<code>collect_brother()</code> — کانتر/تونر/درام با fallback ذخیره در store و رویداد مشترک'],
+ sensor:['<code>SENSOR_BASE_OIDS</code> + <code>_port_oids()</code> — ساخت OID هر پورت (تا ۸ پورت با <code>SENSOR_PORT_COUNT</code>)؛ آستانه‌های warning/critical و دلتای لاگ همه از ENV',
+  '<code>collect_sensor()</code> — خواندن دما/رطوبت، محدوده‌گذاری (min/max)، ثبت در <code>record_sensor_readings</code> و ساخت رویداد <code>SENSOR_CHANGE</code> فقط برای تغییر معنی‌دار (≥۱°C یا ≥۵٪)'],
+ protocol:['ساخت بسته BER: <code>encode_oid()</code>، <code>encode_length()</code>، <code>build_snmp_get_v1()</code>، <code>build_snmp_get_v2c()</code>',
+  'پارس پاسخ: <code>parse_snmp_response(_debug)()</code> — با تحمل <code>request_id_mismatch</code> و گزارش خطاها از <code>SNMP_ERROR_NAMES</code>',
+  'کش نسخه: <code>_get/_set/_clear_cached_version()</code> با TTL مثبت ۳۶۰۰ثانیه و منفی ۳۰ثانیه؛ <code>_detect_snmp_version()</code> — پروب دومرحله‌ای؛ <code>snmp_get()/snmp_get_with_fallback()/snmp_get_bulk()</code> — API اصلی'],
+ oid_map:['<code>OID_BASE = "1.3.6.1.4.1.1129.2.3.50"</code> (Toshiba)؛ دیکشنری بزرگ <code>OIDS</code> — نگاشت کلید به OID برای کانترها/تونر/وضعیت',
+  '<code>PAPER_SIZE_MAP</code> — کد سینی به اندازه کاغذ؛ <code>TONER_STATUS</code>/<code>TONER_LEVEL</code> — کد وضعیت به برچسب و درصد'],
+ scanner:['<code>scan_printer_oids()</code> — خواندن OIDهای کاتالوگ روی یک IP با کش ۲۴ساعته مگر force؛ <code>_load/_save_oid_profiles()</code> — مدیریت <code>oid_profiles.json</code>',
+  '<code>startup_scan_all()</code> — اسکن یک‌باره در بوت؛ <code>weekly_scan_loop()</code> — حلقه‌ی هفتگی (<code>WEEK</code>) برای تازه‌سازی profileها و تغذیه‌ی classifier'],
+ catalog:['فقط داده: دیکشنری <code>OID_CATALOG</code> — برای هر OID شناخته‌شده: کلید، دسته (system/counter/supply/tray)، نوع مقدار و توضیح فارسی؛ scanner و validator از آن استفاده می‌کنند'],
+ validator:['<code>VALID_NEGATIVE_VALUES = {-1,-2,-3}</code> — مقادیر معتبر خاص RFC 3805', '<code>_validate_oid_value_strict()/validate_oid_value()</code> — بررسی نوع/محدوده‌ی مقادیر هر OID؛ <code>log_validation_error()</code> — ثبت در <code>oid_validation_errors.txt</code>'],
+ wapp:['<code>create_app()</code> — ساخت Flask با SECRET_KEY از settings، صدا زدن <code>init_security(app)</code> و <code>init_auth(app)</code>، ثبت ۱۴ blueprint (dashboard تا yield_status) و تنظیم CORS از ENV',
+  'template filterها و context processor برای ASSET_VERSION (cache busting) و دسترسی کاربر'],
+ auth:['<code>auth_bp</code> — روت‌های <code>/login</code>، <code>/register</code>، <code>/logout</code>، <code>/forgot-password</code>، <code>/reset-password/&lt;token&gt;</code>، <code>/auth/google[/callback]</code>؛ اولین کاربر خودکار admin و verified می‌شود',
+  '<code>init_auth()</code>/<code>load_user()</code> — اتصال Flask-Login؛ دکوریتورهای <code>admin_required</code> و توابع دسترسی: <code>office_for_ip()</code>، <code>user_allowed_offices()/modules()</code>، <code>user_can_access_office()/module()</code>؛ <code>_is_safe_next_url()</code> — جلوگیری از open redirect؛ ثبت رویداد امنیتی در هر ورود/خطا'],
+ wsec:['<code>limiter</code> — Flask-Limiter با محدودیت روی اندپوینت‌های حساس (لاگین/ثبت‌نام)؛ <code>init_security()</code> — فعال‌سازی CSRF (Flask-WTF) و limiter',
+  '<code>_security_headers()</code> — افزودن headerهای امنیتی (X-Frame-Options، nosniff، Referrer-Policy و...) به هر پاسخ'],
+ r_api:['<code>printers.py</code>: <code>/api/printers</code>، <code>/api/printer/&lt;ip&gt;</code>، add/bulk-add/remove، <code>/update</code>، <code>/toner_reset</code>، discover/auto-add و debugهای داخلی — همه با محدودیت دفتر',
+  '<code>logs.py</code>: <code>/api/logs/all</code>، <code>/api/printer/&lt;ip&gt;/log</code>، <code>/api/logs/clear</code>، <code>/api/events/manual</code>؛ <code>groups.py</code>: ۴ endpoint روی core/groups؛ <code>system.py</code>: <code>/api/status</code> و <code>/api/poll/now</code>؛ <code>stats.py</code>: آمار روزانه‌ی چاپ و سنسور'],
+ r_adm:['<code>users.py</code> — CRUD کاربران فقط برای admin: ایجاد (با لینک reset ایمیلی)، تغییر role، verify، تنظیم dفاتر/ماژول‌ها و حذف',
+  '<code>security.py</code> — صفحه‌ی <code>/security</code> و API رویدادها/آمار از core/security_audit (فقط admin)؛ <code>yield_status.py</code> — وضعیت Yield Engine و تولید گزارش متنی'],
+ r_rep:['<code>export_bp.py</code> — <code>/api/export/excel</code>: سه شیت (Printer Status، Job Log، Reset History) با openpyxl؛ <code>/api/export/logs?format=csv|excel</code>',
+  '<code>import_db.py</code> — <code>/api/import/analyze</code> (خواندن جداول فایل آپلودی و پیش‌نمایش) و <code>/api/import/confirm</code> (با <code>_make_backup()</code> خودکار و import با مدیریت تکراری‌ها skip/update)'],
+ r_scan:['<code>scan.py</code> — <code>/api/scan/oids</code>، <code>/api/scan/oids/&lt;ip&gt;</code>، <code>/api/scan/all</code>، <code>/api/scan/profiles</code> روی core/oid/scanner',
+  '<code>validation.py</code> — <code>/api/validate/counters</code> و <code>/api/validate/oids/&lt;ip&gt;</code>؛ <code>discover.py</code> — کشف دستگاه‌ها با ThreadPool؛ <code>dashboard.py</code> — رندر صفحه‌ی اصلی'],
+ rdash:['یک روت: <code>GET /</code> — رندر <code>dashboard.html</code> و تزریق <code>POLL_INTERVAL</code> تا فرانت‌اند هم‌دوره بماند'],
+ rprint:['روت‌های GET: <code>/api/printers</code> (از store) و <code>/api/printer/&lt;ip&gt;</code>؛ POST: add/bulk-add/remove با اعتبارسنجی IP و community',
+  '<code>/update</code> (نام/گروه/آیکون)، <code>/toner_reset</code> (ثبت REFILL و تنظیم override)، <code>/discover</code> و <code>/auto-add</code>؛ اندپوینت‌های <code>/api/debug/*</code> برای توسعه؛ همه با <code>allowed_printer_ips</code> فیلتر می‌شوند'],
+ rlogs:['<code>/api/logs/all</code> و <code>/api/printer/&lt;ip&gt;/log</code> — خواندن از <code>get_all_logs/get_log</code> با فیلتر دسترسی دفتر؛ <code>/api/logs/clear</code> و <code>/api/events/manual</code> برای پاک‌سازی و رویداد دستی (SERVICE/REFILL)'],
+ rexport:['<code>/api/export/excel</code> — ساخت workbook با openpyxl: شیت <code>Printer Status</code> از store، شیت <code>Job Log</code> و <code>Reset History</code> از db؛ <code>/api/export/logs?format=csv</code> هم موجود است'],
+ rdisc:['<code>POST /api/printers/discover</code> — با <code>ThreadPoolExecutor</code> روی رنج IP، با snmp_get کوتاه sysDescr را می‌خواند و دستگاه‌های زنده را برمی‌گرداند'],
+ rscan:['روت‌های scan: اجرای <code>scan_printer_oids()</code> روی یک IP یا همه (<code>startup_scan_all</code>) و نمایش profileهای ذخیره‌شده؛ با فیلتر و قفل thread'],
+ rstats:['<code>/api/stats/daily</code> — تجمیع رویدادهای PRINT هر روز از logs.db (group by date) برای نمودار؛ <code>/api/stats/sensor/daily</code> — میانگین/min/max روزانه‌ی سنسورها'],
+ rsys:['<code>/api/status</code> — وضعیت کلی: تعداد پرینترها/آنلاین، POLL_INTERVAL و نسخه؛ <code>/api/poll/now</code> — استارت thread برای poll فوری همه دستگاه‌ها'],
+ rsec:['<code>GET /security</code> — رندر <code>security.html</code> (فقط admin)؛ <code>/api/security/events</code> و <code>/api/security/stats</code> — خواندن از core/security_audit با فیلتر severity/type'],
+ rusers:['<code>GET /users</code> — صفحه‌ی مدیریت؛ API: لیست/ساخت کاربر (با تولید رمز تصادفی و ایمیل لینک reset از utils)، تغییر role، verify، تنظیم allowed_offices/modules و حذف — همه <code>admin_required</code>'],
+ rvalid:['<code>/api/validate/counters</code> — اجرای <code>validate_counter_consistency()</code> روی state فعلی؛ <code>/api/validate/oids/&lt;ip&gt;</code> — اعتبارسنجی مقادیر profile ذخیره‌شده با oid/validator'],
+ rgroups:['۴ روت: <code>GET/POST /api/groups</code>، <code>POST /api/groups/&lt;gid&gt;/rename</code>، <code>DELETE /api/groups/&lt;gid&gt;</code> روی core/groups؛ <code>_clear_group_from_printers()</code> — هنگام حذف گروه، آن را از همه‌ی پرینترها پاک می‌کند'],
+ rimport:['<code>_tables/_columns/_table_count/_table_range/_table_printers</code> — خودشناسی ساختاری فایل آپلودی؛ <code>_make_backup()</code> — کپی logs.db قبل از import',
+  '<code>/api/import/analyze</code> — گزارش جداول/رکوردها/بازه‌ی تاریخ؛ <code>/api/import/confirm</code> — اجرای <code>_import_table()</code> با فیلتر IP/تاریخ و مدیریت تکراری skip/update (فقط admin)'],
+ ryield:['<code>GET /api/yield/status</code> — خروجی JSON وضعیت یادگیری هر پرینتر/کارتریج از yield_engine؛ <code>POST /api/yield/report</code> — تولید و ذخیره‌ی فایل گزارش متنی (فقط admin)'],
+ tpl:['<code>base.html</code> — قالب مادر: متا CSRF، بارگذاری CSS/JS نسخه‌دار (ASSET_VERSION)، نوبار، toast container و بلاک محتوا',
+  'صفحات: <code>dashboard.html</code> (کانتینر کارت‌ها، سایدبار گروه‌ها، مودال‌ها)، <code>login/register/forgot/reset_password/pending_verification.html</code>، <code>users.html</code> و <code>security.html</code>'],
+ dashjs:['حلقه‌ی <code>fetch("/api/printers")</code> هر چند ثانیه + رندر مجدد کارت‌ها؛ ساخت کارت پرینتر: وضعیت، کانترها (با tooltip و آکاردئون)، تونر/سینی/هشدار و منوی اکشن',
+  'نمودار مصرف روزانه با Chart.js از <code>/api/stats/daily</code>؛ مدیریت گروه‌ها (ساخت/تغییرنام/حذف از <code>/api/groups</code>)؛ ریست تونر و خروجی اکسل؛ ذخیره‌ی تم و چیدمان کارت‌ها در localStorage با Sortable'],
+ css:['متغیرهای CSS تم دارک/لایت بر اساس data-theme؛ استایل کارت پرینتر، badge وضعیت، progress تونر/سینی، جدول لاگ، مودال، toast و فرم‌ها؛ ریسپانسیو و RTL کامل'],
+ libs:['<code>Sortable.min.js</code> — Drag&Drop کارت‌ها؛ <code>chart.umd.min.js</code> — نمودارها؛ <code>legacy-mode.js</code> — نمای سازگاری قدیمی'],
+ dbfile:['جداول اصلی: <code>logs</code> (رویداد + details JSON)، <code>users</code>، <code>printer_counters</code>، <code>toner_history</code>، <code>reset_history</code>، <code>sensor_readings</code>',
+  'جداول yield: <code>yield_state</code>، <code>yield_snapshots</code>، <code>yield_samples</code>، <code>yield_profiles</code>؛ و <code>security_events</code> برای داشبورد امنیت'],
+ prjson:['آرایه‌ای از آبجکت‌ها: <code>{"ip": "...", "name": "...", "community": "public", "group": "g_...", ...}</code> — منبع لیست PRINTERS در store'],
+ grjson:['آرایه‌ای از گروه‌های سفارشی: <code>{"id": "g_xxxx", "name": "...", "icon": "🏢", "color": "cyan", "created_at": "...", "updated_at": "..."}</code>'],
+ oidjson:['نگاشت <code>ip → profile</code>: مدل تشخیص‌داده‌شده، زمان آخرین اسکن و دیکشنری <code>oids {key: {oid,value,valid}}</code> برای هر دستگاه'],
+ ycat:['آرایه‌ای از entryها: <code>brand</code>، <code>model_contains</code>، <code>name_regex</code>، <code>colors</code> و چهار ظرفیت <code>yield_per_page_oem/compatible/refill/local</code> — ۳۴ مدل از جمله HP 87A/X/Y، Canon 071/071H'],
+ dev_printers:['کد محلی ندارد — موجودیت شبکه است؛ تعامل از طریق SNMP (UDP/161، community) و برای تونر بعضی مدل‌ها از طریق HTTP روی رابط وب خود دستگاه'],
+ dev_sensor:['کد محلی ندارد — ECS100G با SNMP v1 دما/رطوبت را روی OIDهای پورت خودش ارائه می‌کند'],
+ svc_google:['سرویس خارجی گوگل؛ پروژه با <code>authlib</code> جریان OAuth را مدیریت می‌کند (web/auth.py → <code>/auth/google</code>)'],
+ svc_recap:['سرویس خارجی گوگل؛ utils.py با POST به <code>siteverify</code> توکن فرم را اعتبارسنجی می‌کند'],
+ svc_smtp:['سرور ایمیل خارجی (TLS)؛ utils.py تابع <code>send_email()</code> لینک ریست رمز را می‌فرستد'],
+ browser:['کد سمت کلاینت: فایل‌های static/js (مخصوصاً dashboard.js) که در مرورگر اجرا شده و با APIهای Flask صحبت می‌کنند'],
+ http_scrape:['منطق در کد پروژه: <code>_scrape_toshiba_toners()</code> (toshiba.py) و <code>_scrape_canon_toners()</code> (canon.py) — GET صفحات وضعیت دستگاه و استخراج درصد با regexهایی مثل <code>(toner|cartridge|black)[^0-9%]{0,40}(\d{1,3})%</code>'],
+ tests:['<code>test_counters_event.py</code> — سناریوهای چاپ/ریست/ناهنجاری؛ <code>test_paper_size.py</code> — تطبیق A3/A4؛ <code>test_logging_simulation.py</code> — ۱۳ سناریوی End-to-End با پرینتر مجازی',
+  '<code>test_offline_resilience.py</code> — grace cycle؛ <code>test_brand_supplies.py</code> — ۸ تست تونر Canon LBP233dw و HP M527/E52645؛ <code>test_groups.py</code> و <code>test_yield_engine.py</code> — در مجموع ۵۹ تست با pytest'],
+ diag:['<code>python tools/diagnose_printer.py &lt;IP&gt; [--community] [--timeout]</code> — خواندن sysDescr/sysObjectID، پیمایش کانترها و supplies با SNMP و دانلود چند صفحه‌ی وب دستگاه',
+  'خروجی: فایل <code>diagnose_&lt;ip&gt;.md</code> با همه‌ی مقادیر خام + تحلیل اولیه برای افزودن پشتیبانی مدل جدید'],
+ oidcat:['<code>catalog.py</code> فقط داده‌ی OID_CATALOG را دارد و <code>validator.py</code> توابع <code>validate_oid_value</code> و <code>log_validation_error</code> را']
+};
+
+/* ======================================================================
+   LAYOUT — موقعیت‌یابی نمای وابستگی (pure)
+   ====================================================================== */
+const DEP_COLS = [
+ {t:'ریشه پروژه'}, {t:'config'}, {t:'core'}, {t:'core/collectors'}, {t:'core/snmp'},
+ {t:'core/oid'}, {t:'web'}, {t:'web/routes'}, {t:'templates + static'}, {t:'داده / فایل‌ها'}, {t:'بیرون · تست · ابزار'}
+];
+const DEP_COL_W = 235, DEP_NODE_W = 205, DEP_NODE_H = 36, DEP_GAP = 10, DEP_TOP = 64, DEP_LEFT = 30;
+const DEP_ORDER_EXTRA = {cfg:0, db:0, poller:1, store:2, enhanced:3, yield:4, groups:5, audit:6, classifier:7};
+function depLayout(){
+  const cols = {}; const pos = {};
+  NODES.forEach(n=>{ if(n.depCol==null) return;
+    cols[n.depCol] = cols[n.depCol]||[];
+    cols[n.depCol].push(n);
+  });
+  Object.keys(cols).forEach(c=>{
+    cols[c].sort((a,b)=>{
+      const oa = DEP_ORDER_EXTRA[a.id]!=null ? DEP_ORDER_EXTRA[a.id] : 99;
+      const ob = DEP_ORDER_EXTRA[b.id]!=null ? DEP_ORDER_EXTRA[b.id] : 99;
+      return oa-ob || a.title.localeCompare(b.title);
+    });
+    cols[c].forEach((n,i)=>{
+      pos[n.id] = {x: DEP_LEFT + Number(c)*DEP_COL_W, y: DEP_TOP + i*(DEP_NODE_H+DEP_GAP), w: DEP_NODE_W, h: DEP_NODE_H};
+    });
+  });
+  return pos;
+}
+
+/* ======================================================================
+   XML EXPORT — ساخت mxfile سه‌صفحه‌ای برای draw.io (pure)
+   ====================================================================== */
+function xesc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function vert(id, value, x,y,w,h, style){
+  return '<mxCell id="'+id+'" value="'+xesc(value)+'" style="'+style+'" vertex="1" parent="1">'
+       + '<mxGeometry x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" as="geometry"/></mxCell>';
+}
+function edge(id, value, src, dst, style){
+  return '<mxCell id="'+id+'" value="'+xesc(value)+'" style="'+style+'" edge="1" parent="1" source="'+src+'" target="'+dst+'">'
+       + '<mxGeometry relative="1" as="geometry"/></mxCell>';
+}
+function nodeStyle(cat){
+  return 'rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor='+CATS[cat].color
+       + ';strokeColor=#0f172a;fontColor=#ffffff;fontSize=11;align=center;verticalAlign=middle;spacing=4;';
+}
+function buildXml(){
+  const dep = depLayout();
+  const zoneStyle='rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;opacity=40;strokeColor=#94a3b8;dashed=1;fontColor=#334155;fontSize=13;fontStyle=1;verticalAlign=top;spacingTop=6;align=right;spacingRight=12;';
+  const eStyle='html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;strokeColor=#64748b;fontSize=10;fontColor=#475569;endArrow=block;endFill=1;jumpStyle=arc;';
+  const eDash='html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;dashed=1;dashPattern=4 4;strokeColor=#7c8db0;fontSize=10;fontColor=#475569;endArrow=block;endFill=1;jumpStyle=arc;';
+  /* صفحه ۱: معماری */
+  let cells='';
+  ZONES.forEach((z,i)=>{ cells += vert('a_z'+i, z.t, z.x,z.y,z.w,z.h, zoneStyle); });
+  NODES.forEach(n=>{ if(!n.arch) return;
+    const lbl = n.title + (n.sub?'<br>'+n.sub:'');
+    cells += vert('a_'+n.id, lbl, n.arch[0],n.arch[1],n.arch[2],n.arch[3], nodeStyle(n.cat));
+  });
+  EDGES_ARCH.forEach((e,i)=>{ cells += edge('a_e'+i, e[2]||'', 'a_'+e[0], 'a_'+e[1], eStyle); });
+  const pageArch = '<diagram id="arch" name="معماری لایه‌ها"><mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1780" pageHeight="1200" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>'+cells+'</root></mxGraphModel></diagram>';
+  /* صفحه ۲: جریان داده */
+  cells='';
+  const FW=380, FH=110;
+  FLOW.forEach(s=>{
+    cells += vert('f_'+s.n, s.n+'. '+s.t+'<br>'+s.b, s.x+40, s.y, FW, FH, nodeStyle(s.cat)+'align=right;verticalAlign=top;spacing=8;fontSize=11;');
+  });
+  for(let i=0;i<FLOW.length;i++){
+    const a=FLOW[i], b=FLOW[i+1]; if(!b) break;
+    /* زنجیره: فقط بین مراحل اصلی ۱..۱۳ و اگر فاصله منطقی است */
+    cells += edge('f_e'+i, '', 'f_'+a.n, 'f_'+b.n, eStyle+';strokeWidth=2;strokeColor=#2563eb;');
+  }
+  FLOW_SUB.forEach((s,i)=>{
+    cells += vert('f_sub'+i, s.t+'<br>'+s.b, s.x+40, s.y, FW, FH, nodeStyle(s.cat)+'align=right;verticalAlign=top;spacing=8;fontSize=11;dashed=1;opacity=90;');
+  });
+  const pageFlow = '<diagram id="flow" name="جریان داده (چرخه polling)"><mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1780" pageHeight="760" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>'+cells+'</root></mxGraphModel></diagram>';
+  /* صفحه ۳: وابستگی فایل‌ها */
+  cells='';
+  const colHdrStyle='rounded=0;whiteSpace=wrap;html=1;fillColor=#1e2c44;strokeColor=none;fontColor=#dbe7fa;fontSize=12;fontStyle=1;';
+  DEP_COLS.forEach((c,i)=>{
+    cells += vert('d_c'+i, (i+1)+' | '+c.t, DEP_LEFT+i*DEP_COL_W, 14, DEP_NODE_W, 34, colHdrStyle);
+  });
+  NODES.forEach(n=>{ const p=dep[n.id]; if(!p) return;
+    cells += vert('d_'+n.id, n.title, p.x, p.y, p.w, p.h, nodeStyle(n.cat)+'fontSize=10;');
+  });
+  EDGES_DEP.forEach((e,i)=>{
+    const st = e.k==='imp' ? eStyle : eDash;
+    cells += edge('d_e'+i, e.l||'', 'd_'+e.a, 'd_'+e.b, st);
+  });
+  const pageDep = '<diagram id="dep" name="وابستگی فایل‌ها"><mxGraphModel dx="1800" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2640" pageHeight="820" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>'+cells+'</root></mxGraphModel></diagram>';
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="app.diagrams.net" agent="Mozilla/5.0" version="24.7.8" type="device">'
+       + pageArch + pageFlow + pageDep + '</mxfile>';
+}
+
+/* ذخیره فایل — فقط در مرورگر */
+function downloadXml(){
+  const blob = new Blob([buildXml()], {type:'application/xml;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'multi-printer-architecture.xml';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 800);
+}
+
+/* ======================================================================
+   UI — همه‌ی کدهای DOM (فقط اگر مرورگر موجود است)
+   ====================================================================== */
+if (typeof document !== 'undefined' && document.getElementById){
+(function(){
+  const svg = document.getElementById('svg');
+  const world = document.getElementById('world');
+  const NS = 'http://www.w3.org/2000/svg';
+  const byId = {}; NODES.forEach(n=>byId[n.id]=n);
+  const mCanvas = document.createElement('canvas').getContext('2d');
+  let VIEW = 'arch';
+  let SEL = null, HOVER = null;
+  let playing = false, playTimer = null, flowIdx = -1;
+  const hiddenCats = new Set();
+
+  function fit(t, maxW, base, bold){
+    let s = base;
+    mCanvas.font = (bold?'700 ':'400 ') + s + 'px Tahoma, sans-serif';
+    while (s > 7.5 && mCanvas.measureText(t).width > maxW){ s -= .5; mCanvas.font = (bold?'700 ':'400 ') + s + 'px Tahoma, sans-serif'; }
+    return s;
+  }
+  function el(name, attrs, parent){
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function nodeCenter(p){return {cx:p.x+p.w/2, cy:p.y+p.h/2, x:p.x,y:p.y,w:p.w,h:p.h};}
+
+  /* ---------- state: view data ---------- */
+  function currentData(){
+    if (VIEW==='arch') return {nodes: NODES.filter(n=>n.arch).map(n=>({n, p:{x:n.arch[0],y:n.arch[1],w:n.arch[2],h:n.arch[3]}})),
+                               edges: EDGES_ARCH.map(e=>({a:e[0],b:e[1],l:e[2]||'',k:'imp'}))};
+    if (VIEW==='dep'){
+      const pos = depLayout();
+      const arr = [];
+      NODES.forEach(n=>{ if(pos[n.id]) arr.push({n, p:pos[n.id]}); });
+      return {nodes: arr, edges: EDGES_DEP.map(e=>({a:e.a,b:e.b,l:e.l||'',k:e.k}))};
+    }
+    /* flow */
+    const fn = FLOW.map(s=>({n:{id:'f'+s.n, cat:s.cat, title:s.t, sub:'', file:null, desc:s.b, flowStep:s.n}, p:{x:s.x,y:s.y,w:400,h:120}}));
+    const fs = FLOW_SUB.map((s,i)=>({n:{id:'fs'+i, cat:s.cat, title:s.t, sub:'', file:null, desc:s.b}, p:{x:s.x,y:s.y,w:400,h:120}}));
+    const fe = [];
+    for(let i=1;i<FLOW.length;i++){
+      const a = FLOW[i-1], b = FLOW[i];
+      fe.push({a:'f'+a.n, b:'f'+b.n, l:'', k:'imp'});
+    }
+    return {nodes: fn.concat(fs), edges: fe};
+  }
+
+  /* ---------- render ---------- */
+  function edgePath(pa, pb){
+    const A = nodeCenter(pa), B = nodeCenter(pb);
+    const dy = B.cy - A.cy;
+    if (Math.abs(dy) > Math.abs(B.cx - A.cx)) {
+      if (dy > 0) { const y1=A.y+A.h, y2=B.y, my=(y1+y2)/2;
+        return {d:'M'+A.cx+','+y1+' C'+A.cx+','+my+' '+B.cx+','+my+' '+B.cx+','+y2, lx:(A.cx+B.cx)/2, ly:my}; }
+      const y1=A.y, y2=B.y+B.h, my=(y1+y2)/2;
+      return {d:'M'+A.cx+','+y1+' C'+A.cx+','+my+' '+B.cx+','+my+' '+B.cx+','+y2, lx:(A.cx+B.cx)/2, ly:my};
+    }
+    if (B.cx > A.cx){ const x1=A.x+A.w, x2=B.x, mx=(x1+x2)/2;
+      return {d:'M'+x1+','+A.cy+' C'+mx+','+A.cy+' '+mx+','+B.cy+' '+x2+','+B.cy, lx:mx, ly:(A.cy+B.cy)/2};
+    }
+    const x1=A.x, x2=B.x+B.w, mx=(x1+x2)/2;
+    return {d:'M'+x1+','+A.cy+' C'+mx+','+A.cy+' '+mx+','+B.cy+' '+x2+','+B.cy, lx:mx, ly:(A.cy+B.cy)/2};
+  }
+
+  let edgeRefs = [];   /* {g, a, b} */
+  let nodeRefs = {};   /* id -> g */
+  function render(){
+    /* متن نکته‌ی بالای صفحه */
+    const notes = {
+      arch:'🏗️ مسیر حرکت داده از بالا به پایین: دستگاه‌ها ← شبکه ← جمع‌آوری ← پردازش ← ذخیره ← وب ← مرورگر. روی هر گره کلیک کنید.',
+      flow:'🔄 چرخه‌ی کامل دریافت اطلاعات در ۱۳ مرحله؛ با «▶ پخش» مراحل را دنبال کنید.',
+      dep:'🧩 ۶۰ گره: همه‌ی فایل‌های پروژه + فایل‌های داده + گره‌های بیرونی/تست، گروه‌بندی بر اساس پوشه. A ─▶ B یعنی «A از B استفاده می‌کند». آبی‌چین = HTTP، بنفش نقطه‌چین = فایل، خاکستری چین = تست.'
+    };
+    document.getElementById('viewNote').textContent = notes[VIEW];
+    document.getElementById('flowBar').classList.toggle('show', VIEW==='flow');
+    world.innerHTML = '';
+    edgeRefs = []; nodeRefs = {};
+    const data = currentData();
+    const posMap = {}; data.nodes.forEach(o=>posMap[o.n.id]=o.p);
+
+    /* زون‌های معماری */
+    if (VIEW==='arch'){
+      ZONES.forEach(z=>{
+        el('rect',{class:'zone', x:z.x,y:z.y,width:z.w,height:z.h,rx:16,fill:'#7ea6ff',opacity:.5},world);
+        const t = el('text',{class:'zoneTitle', x:z.x+z.w-16, y:z.y+22, 'text-anchor':'end'},world);
+        t.textContent = z.t;
+      });
+    }
+    if (VIEW==='dep'){
+      DEP_COLS.forEach((c,i)=>{
+        const r = el('rect',{x:DEP_LEFT+i*DEP_COL_W, y:14, width:DEP_NODE_W, height:34, rx:8, fill:'#1e2c44'},world);
+        const t = el('text',{x:DEP_LEFT+i*DEP_COL_W+DEP_NODE_W/2, y:14+22, 'text-anchor':'middle', fill:'#dbe7fa', 'font-size':12.5, 'font-weight':700},world);
+        t.textContent = (i+1)+' | '+c.t;
+      });
+    }
+    /* سه لایه‌ی جدا: مسیر یال‌ها (زیرین) ← گره‌ها ← برچسب یال‌ها (روی‌ترین) */
+    const gE = el('g',{},world);
+    const gN = el('g',{},world);
+    const gL = el('g',{},world);
+    data.edges.forEach(e=>{
+      const pa = posMap[e.a], pb = posMap[e.b]; if(!pa||!pb) return;
+      const g = el('g',{class:'edge'+(e.k!=='imp'?' k-'+e.k:'')},gE);
+      const ep = edgePath(pa,pb);
+      const pth = el('path',{d:ep.d, 'marker-end':'url(#arr)'},g);
+      let lab = null;
+      if (e.l){
+        lab = el('g',{class:'eglabel'}, gL);
+        const t = el('text',{x:ep.lx, y:ep.ly-4, 'text-anchor':'middle'},lab);
+        t.textContent = e.l;
+        const bb2 = t.getBBox();
+        const r = el('rect',{class:'elabb', x:(bb2.x-5), y:(bb2.y-2), width:(bb2.width+10), height:(bb2.height+4), rx:5},lab);
+        lab.insertBefore(r, t);
+      }
+      edgeRefs.push({g, lab, a:e.a, b:e.b, pth});
+    });
+    /* گره‌ها */
+    data.nodes.forEach(o=>{
+      const n = o.n, p = o.p;
+      const g = el('g',{class:'node', 'data-id':n.id, transform:'translate('+p.x+','+p.y+')'},gN);
+      const col = CATS[n.cat].color;
+      el('rect',{class:'box', x:0,y:0,width:p.w,height:p.h,rx:12, fill:col},g);
+      if (hiddenCats.has(n.cat)) g.style.display='none';
+      const isFlowCard = VIEW==='flow';
+      const fs1 = fit(n.title, p.w-26, isFlowCard?13.5:12.5, true);
+      if (VIEW==='flow' && o.n.flowStep){
+        el('circle',{class:'flowBadge', cx:14, cy:14, r:11},g);
+        const tn = el('text',{class:'flowNum', x:14, y:18.5, 'text-anchor':'middle'},g);
+        tn.textContent = o.n.flowStep;
+      }
+      const t1 = el('text',{class:'title', x:p.w/2, y: isFlowCard?24 : (n.sub && p.h>=56? p.h/2-4 : p.h/2+4.5), 'text-anchor':'middle','font-size':fs1},g);
+      t1.textContent = n.title;
+      if (isFlowCard){
+        const desc = n.desc;
+        const lines = wrapText(desc, p.w-30, 11);
+        lines.slice(0,4).forEach((ln,i)=>{
+          const t = el('text',{class:'sub', x:p.w/2, y:44+i*15, 'text-anchor':'middle','font-size':11},g);
+          t.textContent = ln;
+        });
+      } else if (n.sub && p.h>=56){
+        const t2 = el('text',{class:'sub', x:p.w/2, y:p.h/2+15, 'text-anchor':'middle','font-size':fit(n.sub,p.w-26,10.8,false)},g);
+        t2.textContent = n.sub;
+      }
+      g.addEventListener('mouseenter',()=>{HOVER=n.id; refreshHL();});
+      g.addEventListener('mouseleave',()=>{HOVER=null; refreshHL();});
+      g.addEventListener('click',(ev)=>{ev.stopPropagation(); select(n.id);});
+      nodeRefs[n.id] = g;
+    });
+    fitView(true);
+    refreshHL();
+  }
+  function codeHtml(id){
+    const arr = CODE_CONTENT[id];
+    if (!arr || !arr.length) return '';
+    return '<div class="pSec"><h4>🧬 محتوای سورس:</h4><ul class="pCode">'
+         + arr.map(x=>'<li>'+x+'</li>').join('') + '</ul></div>';
+  }
+  function wrapText(text, maxW, size){
+    mCanvas.font = size+'px Tahoma, sans-serif';
+    const words = String(text).split(' '); const lines=[]; let cur='';
+    words.forEach(w=>{
+      const t = cur? cur+' '+w : w;
+      if (mCanvas.measureText(t).width > maxW && cur){ lines.push(cur); cur=w; } else cur=t;
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  /* ---------- highlight / select ---------- */
+  function neighbors(id){
+    const s = new Set([id]);
+    edgeRefs.forEach(e=>{ if(e.a===id) s.add(e.b); if(e.b===id) s.add(e.a); });
+    return s;
+  }
+  function refreshHL(){
+    const focus = HOVER || SEL;
+    edgeRefs.forEach(e=>{
+      const on = focus && (e.a===focus || e.b===focus);
+      e.g.classList.toggle('hl', !!on);
+      e.g.classList.toggle('dim', !!focus && !on);
+      if (e.lab){ e.lab.classList.toggle('hl', !!on); e.lab.classList.toggle('dim', !!focus && !on); }
+      e.pth.setAttribute('marker-end', on? 'url(#arrH)':'url(#arr)');
+    });
+    Object.keys(nodeRefs).forEach(id=>{
+      const g = nodeRefs[id];
+      let dim=false;
+      if (focus){ dim = !neighbors(focus).has(id); }
+      g.classList.toggle('dim', dim);
+      g.classList.toggle('sel', id===SEL);
+    });
+    if (VIEW==='flow'){
+      edgeRefs.forEach(e=>{
+        const m = e.b.match(/^f(\d+)$/);
+        if (flowIdx>=0 && m && Number(m[1])===flowIdx){ e.g.classList.add('hl'); e.g.classList.remove('dim'); e.pth.setAttribute('marker-end','url(#arrH)'); }
+      });
+    }
+  }
+  function select(id){
+    SEL = id;
+    const p = document.getElementById('panelBody');
+    const data = currentData();
+    const found = data.nodes.find(o=>o.n.id===id);
+    if (!found){ refreshHL(); return; }
+    const n = found.n;
+    if (VIEW==='flow' && n.flowStep){ flowIdx = n.flowStep; syncFlowBar(); }
+    const uses=[], used=[];
+    edgeRefs.forEach(e=>{
+      if (e.a===id) uses.push(e.b);
+      if (e.b===id) used.push(e.a);
+    });
+    const nameOf = i => { const d = data.nodes.find(o=>o.n.id===i); return d? d.n.title : i; };
+    const chipOf = i => '<span class="pChip" data-goto="'+i+'">'+nameOf(i)+'</span>';
+    document.getElementById('pHead').textContent = n.title;
+    p.innerHTML =
+      '<span class="pCat" style="background:'+CATS[n.cat].color+'">'+(ICONS[n.cat]||'')+' '+CATS[n.cat].name+'</span>'
+      + '<div class="pTitle">'+n.title+'</div>'
+      + (n.sub? '<div style="color:#8ea3c4;font-size:12px;margin-bottom:6px">'+n.sub+'</div>':'')
+      + (n.file? '<div class="pFile">📄 '+n.file+'</div>':'')
+      + '<div class="pDesc">'+n.desc+'</div>'
+      + codeHtml(n.id)
+      + '<div class="pStat"><div><b>'+uses.length+'</b><span>استفاده می‌کند از</span></div><div><b>'+used.length+'</b><span>مصرف‌کننده‌ها</span></div></div>'
+      + (uses.length? '<div class="pSec"><h4>⬅️ استفاده می‌کند از:</h4><div class="pChips">'+uses.map(chipOf).join('')+'</div></div>':'')
+      + (used.length? '<div class="pSec"><h4>➡️ این‌ها از او استفاده می‌کنند:</h4><div class="pChips">'+used.map(chipOf).join('')+'</div></div>':'');
+    p.querySelectorAll('.pChip').forEach(c=>c.addEventListener('click',()=>{
+      const t = c.getAttribute('data-goto');
+      select(t);
+      const g = nodeRefs[t];
+      if (g){ centerOn(t); }
+    }));
+    document.getElementById('panel').classList.remove('hidden');
+    refreshHL();
+  }
+
+  /* ---------- pan & zoom ---------- */
+  let scale=1, tx=0, ty=0;
+  function applyT(){ world.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')'); }
+  function fitView(auto){
+    const data = currentData();
+    let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+    data.nodes.forEach(o=>{const p=o.p; minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x+p.w);maxY=Math.max(maxY,p.y+p.h);});
+    if (VIEW==='arch'){ ZONES.forEach(z=>{maxX=Math.max(maxX,z.x+z.w); maxY=Math.max(maxY,z.y+z.h); minX=Math.min(minX,z.x); minY=Math.min(minY,z.y);}); }
+    if (VIEW==='dep'){ minX=Math.min(minX,10); minY=Math.min(minY,10);
+      maxX=Math.max(maxX, DEP_LEFT+(DEP_COLS.length-1)*DEP_COL_W+DEP_NODE_W); }
+    const W=svg.clientWidth, H=svg.clientHeight;
+    const pad=60;
+    const s = Math.min((W-pad*2)/(maxX-minX+40), (H-pad*2)/(maxY-minY+40), 1.15);
+    scale = s;
+    tx = pad - minX*s + (W-pad*2-(maxX-minX+40)*s)/2;
+    ty = pad - minY*s + (H-pad*2-(maxY-minY+40)*s)/2;
+    applyT();
+  }
+  function centerOn(id){
+    const data = currentData();
+    const f = data.nodes.find(o=>o.n.id===id); if(!f) return;
+    const W=svg.clientWidth,H=svg.clientHeight;
+    tx = W/2 - (f.p.x+f.p.w/2)*scale;
+    ty = H/2 - (f.p.y+f.p.h/2)*scale;
+    applyT();
+  }
+  svg.addEventListener('wheel',(e)=>{
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const mx = e.clientX-r.left, my = e.clientY-r.top;
+    const k = e.deltaY<0? 1.12 : 0.89;
+    const ns = Math.min(2.6, Math.max(.25, scale*k));
+    tx = mx - (mx-tx)*(ns/scale);
+    ty = my - (my-ty)*(ns/scale);
+    scale = ns; applyT();
+  },{passive:false});
+  let drag=null, dragged=false;
+  svg.addEventListener('pointerdown',(e)=>{ if(e.pointerType==='mouse' && e.button!==0) return; drag={x:e.clientX,y:e.clientY,tx,ty}; dragged=false; });
+  window.addEventListener('pointermove',(e)=>{ if(!drag) return;
+    if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>4) dragged=true;
+    tx=drag.tx+(e.clientX-drag.x); ty=drag.ty+(e.clientY-drag.y); applyT(); });
+  window.addEventListener('pointerup',()=>{drag=null;});
+  svg.addEventListener('click',()=>{ if(dragged){dragged=false; return;} SEL=null; refreshHL();
+    document.getElementById('panelBody').innerHTML='<div class="pEmpty">👆 روی هر گره کلیک کنید تا<br>توضیح، مسیر فایل و ارتباطاتش را ببینید.</div>';
+    document.getElementById('pHead').textContent='جزئیات';
+  });
+  document.getElementById('zin').onclick=()=>{scale=Math.min(2.6,scale*1.2);applyT();};
+  document.getElementById('zout').onclick=()=>{scale=Math.max(.25,scale/1.2);applyT();};
+  document.getElementById('zfit').onclick=()=>fitView();
+  document.getElementById('zreset').onclick=()=>{scale=1;tx=60;ty=60;applyT();};
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll('#tabs button').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      VIEW=b.getAttribute('data-view');
+      SEL=null; stopPlay(); render();
+    };
+  });
+
+  /* ---------- legend ---------- */
+  const lg = document.getElementById('legend');
+  Object.keys(CATS).forEach(k=>{
+    const c = document.createElement('span');
+    c.className='chip';
+    c.innerHTML='<span class="dot" style="background:'+CATS[k].color+'"></span>'+CATS[k].name;
+    c.onclick=()=>{
+      if (hiddenCats.has(k)) hiddenCats.delete(k); else hiddenCats.add(k);
+      c.classList.toggle('off');
+      const data = currentData();
+      const catOf = {};
+      data.nodes.forEach(o=>{
+        catOf[o.n.id] = o.n.cat;
+        const g = nodeRefs[o.n.id];
+        if (g) g.style.display = hiddenCats.has(o.n.cat)?'none':'';
+      });
+      edgeRefs.forEach(e=>{
+        const hide = hiddenCats.has(catOf[e.a]) || hiddenCats.has(catOf[e.b]);
+        e.g.style.display = hide ? 'none' : '';
+        if (e.lab) e.lab.style.display = hide ? 'none' : '';
+      });
+    };
+    lg.appendChild(c);
+  });
+
+  /* ---------- search ---------- */
+  const searchInp = document.getElementById('search');
+  searchInp.addEventListener('input',()=>{
+    const q = searchInp.value.trim().toLowerCase();
+    const data = currentData();
+    data.nodes.forEach(o=>{
+      const g = nodeRefs[o.n.id]; if(!g) return;
+      const hit = q && (o.n.title.toLowerCase().includes(q) || (o.n.file||'').toLowerCase().includes(q) || (o.n.sub||'').includes(q));
+      g.classList.toggle('match', !!hit);
+    });
+  });
+  searchInp.addEventListener('keydown',(e)=>{
+    if (e.key!=='Enter') return;
+    const q = searchInp.value.trim().toLowerCase(); if(!q) return;
+    const data = currentData();
+    const f = data.nodes.find(o=> o.n.title.toLowerCase().includes(q) || (o.n.file||'').toLowerCase().includes(q));
+    if (f){ centerOn(f.n.id); select(f.n.id); }
+  });
+
+  /* ---------- flow player ---------- */
+  function syncFlowBar(){
+    const total = FLOW.length;
+    document.getElementById('flowStepLbl').textContent = flowIdx<0? 'آماده‌ی پخش (۱۳ مرحله)' : ('مرحله '+flowIdx+' از '+total);
+    document.querySelector('#flowProg i').style.width = (flowIdx<0?0:(flowIdx/total*100))+'%';
+    document.getElementById('flowPlay').textContent = playing? '⏸ توقف' : '▶ پخش';
+  }
+  function stepFlow(){
+    flowIdx = flowIdx+1;
+    if (flowIdx > FLOW.length){ flowIdx = 0; }
+    if (flowIdx===0){ SEL=null; flowIdx=0; select('f1'); flowIdx=1; }
+    else select('f'+flowIdx);
+    syncFlowBar();
+  }
+  function stopPlay(){ playing=false; if(playTimer){clearInterval(playTimer); playTimer=null;} syncFlowBar(); }
+  document.getElementById('flowPlay').onclick=()=>{
+    if (playing){ stopPlay(); return; }
+    playing=true; syncFlowBar();
+    if (flowIdx<0 || flowIdx>=FLOW.length) { flowIdx=0; stepFlow(); }
+    playTimer = setInterval(()=>{ if (flowIdx>=FLOW.length){ stopPlay(); return; } stepFlow(); }, 2200);
+  };
+  document.getElementById('flowNext').onclick=()=>{ stopPlay(); stepFlow(); };
+  document.getElementById('flowPrev').onclick=()=>{
+    stopPlay(); flowIdx = Math.max(1,(flowIdx<1?1:flowIdx)-1); select('f'+flowIdx); syncFlowBar();
+  };
+
+  /* ---------- misc ---------- */
+  document.getElementById('exportXml').onclick=()=>{
+    downloadXml();
+    const t=document.getElementById('toast');
+    t.textContent='✅ فایل XML ساخته شد — آن را در draw.io با File → Open باز کنید (۳ صفحه دارد).';
+    t.style.display='block'; setTimeout(()=>t.style.display='none', 4200);
+  };
+  document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.add('show');
+  document.getElementById('helpClose').onclick=()=>document.getElementById('helpModal').classList.remove('show');
+  document.getElementById('helpModal').addEventListener('click',(e)=>{ if(e.target.id==='helpModal') e.target.classList.remove('show'); });
+  document.getElementById('panelClose').onclick=()=>document.getElementById('panel').classList.add('hidden');
+  window.addEventListener('resize',()=>fitView());
+
+  syncFlowBar();
+  render();
+})();
+}
+</script>
+</body>
+</html>

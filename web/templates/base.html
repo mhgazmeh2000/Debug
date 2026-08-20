@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Multi Printer Monitoring{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico', v=config.get('ASSET_VERSION', '20260609-2')) }}" type="image/x-icon">
+    <script src="{{ url_for('static', filename='js/chart.umd.min.js', v=config.get('ASSET_VERSION', '20260609-2')) }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=config.get('ASSET_VERSION', '20260609-2')) }}">
+
+    {% block head %}{% endblock %}
+</head>
+<body
+    data-current-user-role="{{ current_user.role if current_user.is_authenticated else 'viewer' }}"
+    data-current-user-verified="{{ '1' if current_user.is_authenticated and current_user.is_verified else '0' }}"
+    data-current-user-modules='{{ current_user.allowed_modules | default([]) | tojson if current_user.is_authenticated else "[]" }}'
+    data-current-user-offices='{{ current_user.allowed_offices | default([]) | tojson if current_user.is_authenticated else "[]" }}'
+>
+    {% block content %}{% endblock %}
+
+    <script>
+        const API = location.protocol + '//' + location.host;
+        const POLL_INT = Number("{{ poll_interval | default(30) }}") || 30;
+        window.currentUsername = {{ (username or 'میهمان') | tojson }};
+
+        // ─── CSRF Token Handling ──────────────────────────────────
+        // خواندن CSRF token از meta tag
+        window.CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+        // به‌روزرسانی توکن CSRF (هم متغیر هم meta) — از پاسخ /api/status یا retry
+        window.updateCsrfToken = function (tok) {
+            if (!tok) return;
+            window.CSRF_TOKEN = tok;
+            const m = document.querySelector('meta[name="csrf-token"]');
+            if (m) m.content = tok;
+        };
+
+        // Server-provided office group definitions (including configurable subnets)
+        window.SERVER_OFFICE_GROUPS = {{ OFFICE_GROUPS|tojson | safe }};
+
+        // wrapper برای fetch که خودکار CSRF token به requestهای state-changing اضافه می‌کند
+        // و اگر توکن منقضی شده بود (400 + csrf_token_invalid) یک‌بار توکن تازه گرفته و retry می‌کند —
+        // رفع خطای 400 روی دکمه‌ها وقتی صفحه بیش از چند ساعت باز مانده است.
+        window.apiFetch = async function(url, options = {}) {
+            const method = (options.method || 'GET').toUpperCase();
+            const needsCsrf = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+            const build = () => {
+                const headers = { ...(options.headers || {}) };
+                if (needsCsrf && window.CSRF_TOKEN) {
+                    headers['X-CSRFToken'] = window.CSRF_TOKEN;
+                }
+                return { ...options, headers, credentials: 'same-origin' };
+            };
+            let r = await fetch(url, build());
+            if (needsCsrf && r.status === 400) {
+                try {
+                    const j = await r.clone().json();
+                    if (j && j.error === 'csrf_token_invalid') {
+                        const sr = await fetch(API + '/api/status', { cache: 'no-store', credentials: 'same-origin' });
+                        const sj = await sr.json();
+                        if (sj && sj.csrf_token) {
+                            window.updateCsrfToken(sj.csrf_token);
+                            r = await fetch(url, build());
+                        }
+                    }
+                } catch (_) { /* پاسخ اصلی همان برگردانده می‌شود */ }
+            }
+            return r;
+        };
+    </script>
+    {% block global_scripts %}{% endblock %}
+    {% if load_dashboard_scripts | default(true) %}
+    <!-- بارگذاری Sortable قبل از dashboard.js -->
+    <script src="{{ url_for('static', filename='js/Sortable.min.js', v=config.get('ASSET_VERSION', '20260609-2')) }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js', v=config.get('ASSET_VERSION', '20260609-2')) }}"></script>
+    <script src="{{ url_for('static', filename='js/legacy-mode.js', v=config.get('ASSET_VERSION', '20260609-2')) }}"></script>
+    {% endif %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

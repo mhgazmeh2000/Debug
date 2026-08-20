@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}ورود | Multi Printer Monitoring{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+  <section class="auth-shell">
+    <div class="auth-hero">
+      <div class="auth-badge">Multi Printer Monitoring</div>
+      <h1>ورود به داشبورد</h1>
+      <p>مدیریت پرینترها، لاگ‌ها و هشدارها با کنترل دسترسی کامل.</p>
+      <ul class="auth-points">
+        <li>ورود با username یا email</li>
+        <li>Google OAuth 2.0</li>
+        <li>بازنشانی امن رمز عبور</li>
+      </ul>
+    </div>
+
+    <div class="auth-card">
+      <h2>ورود</h2>
+      {% if error %}<div class="auth-alert error">{{ error }}</div>{% endif %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="auth-alert {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      <form method="post" class="auth-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+        <label for="login-identifier">نام کاربری یا ایمیل</label>
+        <input id="login-identifier" class="form-input" type="text" name="identifier" autocomplete="username" placeholder="user@example.com" required>
+
+        <label for="login-password">رمز عبور</label>
+        <input id="login-password" class="form-input" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+
+        <label class="auth-check"><input type="checkbox" name="remember"> مرا به خاطر بسپار</label>
+
+        {% if recaptcha_site_key %}
+        <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+        {% endif %}
+
+        <button class="btn btn-cyan auth-submit" type="submit">ورود</button>
+      </form>
+
+      {% if google_enabled %}
+      <a class="btn btn-google auth-social" href="{{ url_for('auth.google_login', next=request.args.get('next', '')) }}">ورود با گوگل</a>
+      {% endif %}
+
+      <div class="auth-links">
+        <a href="{{ url_for('auth.forgot_password') }}">رمز عبور را فراموش کرده‌اید؟</a>
+        <a href="{{ url_for('auth.register') }}">ثبت‌نام</a>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,62 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ===== Virtualenv =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== Runtime / داده‌های محلی — هرگز commit نشوند! =====
+logs.db
+logs.db-*
+codespace.db
+printers.json
+oid_profiles.json
+oid_validation_errors.txt
+toner_report.txt
+missing_yield_printers.txt
+yield_status_report.txt
+*.sqlite
+*.sqlite3
+temp_import*.db*
+
+# ===== Debug / Logs =====
+DEBUG-LOG.md
+audit.json
+audit.md
+diagnose_*.md
+
+# ===== Config / secrets =====
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+cookies.txt
+
+# ===== فایل‌های سیستم‌عامل =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Freebuff =====
+.freebuff/
+
+# ===== Build / cache =====
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+
+{% block title %}Multi Printer Monitoring{% endblock %}
+
+{% block content %}
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo">TOSHIBA<span> MONITOR</span> <span class="v2-badge">v2</span></div>
+  <div class="topbar-meta">
+    <div class="meta-chip"><span class="meta-val g" id="m-on">—</span><span>آنلاین</span></div>
+    <div class="meta-chip"><span class="meta-val r" id="m-off">—</span><span>آفلاین</span></div>
+    <div class="meta-chip"><span class="meta-val c" id="m-poll">#—</span><span>Pull</span></div>
+    <div class="meta-chip"><span class="meta-val" id="m-time" style="font-size:11px">—</span></div>
+    {% if current_user.is_authenticated %}
+    <div class="meta-chip"><span class="meta-val" id="m-user">{{ username }}</span><span>کاربر</span></div>
+    {% endif %}
+  </div>
+  <div class="topbar-actions">
+    <div style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text3)">
+      <div class="dot-live" id="dot" aria-hidden="true"></div><span id="dot-txt">Connecting</span>
+    </div>
+    {% if current_user.is_authenticated and current_user.is_verified and current_user.role in ['admin', 'manager'] and current_user.can_access_module('printers') %}
+    <button class="btn btn-cyan" onclick="triggerPoll()" title="Pull دستی" aria-label="اجرای دستی Pull">⟳</button>
+    {% endif %}
+
+    <!-- منوی بیشتر -->
+    <div class="topbar-more" id="topbar-more">
+      <button class="btn-icon topbar-more-btn" onclick="toggleTopbarMenu()" title="تنظیمات و منو" aria-label="تنظیمات و منو" aria-haspopup="true" aria-expanded="false" aria-controls="topbar-dropdown">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+      <div class="topbar-dropdown" id="topbar-dropdown">
+        <div class="topbar-dropdown-user">
+          <div class="user-avatar">{{ (username or "?")[0]|upper }}</div>
+          <div class="user-info">
+            <div class="user-name">{{ username }}</div>
+            <div class="user-role">{% if current_user.role == 'admin' %}مدیر سیستم{% elif current_user.role == 'manager' %}سرپرست بخش{% else %}بازدیدکننده{% endif %}</div>
+          </div>
+        </div>
+        <div class="topbar-dropdown-divider"></div>
+        <div class="topbar-dropdown-group">
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role == 'admin' and current_user.can_access_module('printers') %}
+          <button class="topbar-dropdown-item" onclick="showAddModal();closeTopbarMenu()">
+            <span class="item-icon">＋</span>
+            <span class="item-text">افزودن پرینتر</span>
+          </button>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role in ['admin', 'manager'] and current_user.can_access_module('excel') %}
+          <button class="topbar-dropdown-item" onclick="exportExcel();closeTopbarMenu()">
+            <span class="item-icon">📊</span>
+            <span class="item-text">خروجی Excel</span>
+          </button>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role in ['admin'] and current_user.can_access_module('excel') %}
+          <button class="topbar-dropdown-item" onclick="exportJSON();closeTopbarMenu()">
+            <span class="item-icon">📄</span>
+            <span class="item-text">خروجی JSON</span>
+          </button>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role == 'admin' and current_user.can_access_module('printers') %}
+          <button class="topbar-dropdown-item" onclick="resetPrinterOrder();closeTopbarMenu()">
+            <span class="item-icon">↺</span>
+            <span class="item-text">بازنشانی ترتیب</span>
+          </button>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role == 'admin' and current_user.can_access_module('users') %}
+          <a class="topbar-dropdown-item" href="{{ url_for('users.users_page') }}">
+            <span class="item-icon">👤</span>
+            <span class="item-text">مدیریت کاربران</span>
+          </a>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role == 'admin' %}
+          <button class="topbar-dropdown-item" onclick="showImportModal();closeTopbarMenu()">
+            <span class="item-icon">📥</span>
+            <span class="item-text">بارگذاری دیتابیس (.db)</span>
+          </button>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_verified and current_user.role == 'admin' %}
+          <a class="topbar-dropdown-item" href="{{ url_for('security_audit.security_page') }}">
+            <span class="item-icon">🛡️</span>
+            <span class="item-text">امنیت سیستم</span>
+          </a>
+          {% endif %}
+        </div>
+        <div class="topbar-dropdown-divider"></div>
+        <div class="topbar-dropdown-group">
+          <button class="topbar-dropdown-item theme-switch" onclick="toggleTheme();closeTopbarMenu()">
+            <span class="item-icon" id="theme-icon">🌙</span>
+            <span class="item-text" id="theme-label">تم تاریک</span>
+          </button>
+        </div>
+        {% if current_user.is_authenticated %}
+        <div class="topbar-dropdown-divider"></div>
+        <a class="topbar-dropdown-item topbar-dropdown-danger" href="{{ url_for('auth.logout') }}">
+          <span class="item-icon">🚪</span>
+          <span class="item-text">خروج از حساب</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</header>
+<div id="cbar"><div id="cfill" style="width:100%"></div></div>
+
+<!-- APP BODY: sidebar + content -->
+<div class="app-layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar" aria-label="ناوبری گروه‌ها">
+    <!-- نمای کلی -->
+    <div class="sb-overview sb-item active" data-tab="overview" role="button" tabindex="0" aria-current="page" onclick="switchTab('overview',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+      <span class="sb-ov-icon">🖥</span>
+      <span class="sb-ov-label">نمای کلی</span>
+      <span class="sb-ov-badge" id="sb-ov-badge"></span>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- گروه‌های دفاتر — با JS پر می‌شوند -->
+    <div id="sidebar-groups"></div>
+  </aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- ── OVERVIEW ── -->
+  <div id="panel-overview" class="tab-panel active">
+    <div class="overview-grid" id="overview-grid" aria-live="polite">
+      <div style="padding:60px;text-align:center;color:var(--text3);font-family:var(--mono)">در حال اتصال...</div>
+    </div>
+    <!-- Access Panel in overview -->
+    <div class="access-panel" id="access-panel" style="display:none">
+      <div class="section-title">🌐 دسترسی از سیستم‌های دیگر</div>
+      <div class="access-grid" id="access-grid"></div>
+    </div>
+
+    <!-- بخش نمودار مصرف روزانه -->
+    {% if current_user.can_access_module('printers') %}
+    <div class="section" style="margin-top:14px">
+      <div class="section-title">📊 نمودار مصرف روزانه (۳۰ روز اخیر)</div>
+      <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; flex-wrap:wrap">
+        <select id="chart-printer-select" class="form-input" style="width:200px">
+          <option value="111">همه پرینترها</option>
+        </select>
+        <button class="btn btn-cyan" onclick="loadDailyChart()">📈 نمایش</button>
+      </div>
+      <div style="position:relative; height:300px;">
+        <canvas id="dailyChart" role="img" aria-label="نمودار مصرف روزانه ۳۰ روز اخیر" style="width:100%; height:100%;"></canvas>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Global Log in overview -->
+    {% if current_user.can_access_module('logs') %}
+    <div class="section" style="margin-top:14px">
+      <div class="section-title">📋 آخرین رویدادها (همه پرینترها)</div>
+      <div class="log-toolbar">
+        <div class="log-filter" id="global-filter">
+          <button class="filter-btn" onclick="filterLog('all',this,'global-log')">همه</button>
+          <button class="filter-btn" onclick="filterLog('ALERT',this,'global-log')">هشدار</button>
+          <button class="filter-btn" onclick="filterLog('PRINT',this,'global-log')">چاپ</button>
+          <button class="filter-btn" onclick="filterLog('STATUS',this,'global-log')">وضعیت</button>
+          <button class="filter-btn" onclick="filterLog('SERVICE',this,'global-log')">🔧 سرویس</button>
+          <button class="filter-btn" onclick="filterLog('REFILL',this,'global-log')">🖨 شارژ</button>
+        </div>
+        <span class="log-count" id="global-log-count" aria-live="polite"></span>
+        <!-- فیلدهای بازه زمانی -->
+        <input type="datetime-local" id="log-start" class="form-input" style="width:auto; font-family:var(--mono); font-size:11px;" title="شروع بازه">
+        <input type="datetime-local" id="log-end" class="form-input" style="width:auto; font-family:var(--mono); font-size:11px;" title="پایان بازه">
+        <button class="btn btn-cyan" onclick="applyDateFilter(null)">🔍 اعمال فیلتر</button>
+        
+        <div class="dropdown" id="global-export-dropdown">
+          <button class="btn btn-yellow dropdown-toggle" onclick="toggleDropdown('global-export-dropdown')">📥 خروجی گزارش‌ها ▼</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" onclick="exportLogsWithRange(null, 'excel')">📊 Excel (بازه انتخابی)</button>
+            <button class="dropdown-item" onclick="exportLogsWithRange(null, 'csv')">📄 CSV (بازه انتخابی)</button>
+            <div class="topbar-dropdown-divider"></div>
+            <button class="dropdown-item" onclick="exportLogExcel()">📈 کل لاگ (Excel)</button>
+            <button class="dropdown-item" onclick="exportLogJSON()">🔗 کل لاگ (JSON)</button>
+          </div>
+        </div>
+
+        <button class="btn" style="border-color:rgba(255,61,61,.3);color:var(--red);background:rgba(255,61,61,.06)" onclick="clearLogs()">× پاک</button>
+      </div>
+      <div id="global-log"><div class="log-empty">رویدادی ثبت نشده</div></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Printer panels generated dynamically -->
+</main>
+</div><!-- /app-layout -->
+
+<!-- ── ADD PRINTER MODAL ── -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal" style="width:600px">
+    <h3>🖨 افزودن پرینتر</h3>
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchAddTab('single',this)">📌 دستی</div>
+      <div class="modal-tab" onclick="switchAddTab('bulk',this)">📋 تجمعی</div>
+      <div class="modal-tab" onclick="switchAddTab('discover',this)">🔍 کشف خودکار</div>
+      <div class="modal-tab" onclick="switchAddTab('groups',this)">📁 گروه‌ها</div>
+    </div>
+    <!-- تب دستی -->
+    <div class="modal-pane active" id="pane-single">
+      <div class="form-group">
+        <label for="add-ip" class="form-label">آدرس IP</label>
+        <input class="form-input" id="add-ip" placeholder="172.16.25.58" type="text">
+      </div>
+      <div class="form-group">
+        <label for="add-name" class="form-label">نام (اختیاری)</label>
+        <input class="form-input" id="add-name" placeholder="Toshiba #5" type="text">
+      </div>
+      <div class="form-group">
+        <label for="add-group-select" class="form-label">گروه / دفتر <span style="color:var(--text3); font-weight:400">(اختیاری)</span></label>
+        <select class="form-input" id="add-group-select" onchange="toggleNewGroupInput()">
+          <option value="">🏠 خودکار — بر اساس زیرشبکه دفتر</option>
+        </select>
+        <input class="form-input" id="add-group-custom" placeholder="نام گروه جدید (مثلاً: اتاق سرور)..." type="text"
+               style="display:none; margin-top:6px" maxlength="60">
+        <div class="bulk-hint" id="add-group-hint">گروه، پرینترها را در سایدبار دسته‌بندی می‌کند. فعلاً می‌توانید گروه را بعداً هم عوض کنید.</div>
+      </div>
+      <div class="form-group">
+        <label for="add-community-single" class="form-label">Community SNMP</label>
+        <input class="form-input" id="add-community-single" placeholder="public" value="public" type="text">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-green" onclick="doAddPrinter()">＋ افزودن</button>
+        <button class="btn" style="color: #ff0000;border-color: #ff0000;" onclick="closeModal()">انصراف</button>
+      </div>
+    </div>
+    <!-- تب تجمعی -->
+    <div class="modal-pane" id="pane-bulk">
+      <div class="form-group">
+        <label for="add-community-bulk" class="form-label">Community SNMP (برای همه)</label>
+        <input class="form-input" id="add-community-bulk" placeholder="public" value="public" type="text">
+      </div>
+      <div class="form-group">
+        <label for="bulk-input" class="form-label">لیست پرینترها — هر خط یک پرینتر</label>
+        <textarea class="bulk-textarea" id="bulk-input" placeholder="172.16.25.34  HP اتاق مدیریت
+172.16.25.60  Canon طبقه دوم
+172.16.25.86
+172.16.25.148 Canon انبار  private
+..."></textarea>
+        <div class="bulk-hint">
+          فرمت هر خط: &nbsp;<code style="color:var(--cyan)">IP &nbsp; نام (اختیاری) &nbsp; community (اختیاری)</code><br>
+          ستون‌ها با فاصله یا tab جدا می‌شوند. خطوط # نادیده گرفته می‌شوند.
+        </div>
+      </div>
+      <div id="bulk-results" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;margin-bottom:10px"></div>
+      <div class="form-actions">
+        <button class="btn btn-cyan" onclick="doBulkPreview()">👁 پیش‌نمایش</button>
+        <button class="btn btn-green" id="bulk-submit-btn" onclick="doBulkAdd()" style="display:none">＋ افزودن همه</button>
+        <button class="btn" style="color: #ff0000;border-color: #ff0000;" onclick="closeModal()">انصراف</button>
+      </div>
+    </div>
+    <!-- تب کشف خودکار -->
+    <div class="modal-pane" id="pane-discover">
+      <!-- محتوای قبلی ... -->
+      <div class="form-group">
+        <label for="add-community-discover" class="form-label">Community SNMP</label>
+        <input class="form-input" id="add-community-discover" placeholder="public" value="public" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">زیرشبکه‌ها</label>
+        <div id="discovery-ranges">
+          <div class="range-row">
+            <input class="form-input" name="subnet[]" placeholder="172.16.25" value="172.16.25" style="flex:2">
+            <input class="form-input" name="start[]" placeholder="1" value="1" style="flex:1;direction:ltr">
+            <input class="form-input" name="end[]" placeholder="254" value="254" style="flex:1;direction:ltr">
+          </div>
+        </div>
+        <button type="button" class="btn btn-cyan" onclick="addDiscoveryRange()" style="margin-top:6px;font-size:11px">➕ رنج دیگر</button>
+      </div>
+      <div id="discover-results" class="discover-results"></div>
+      <div class="form-actions">
+        <button class="btn btn-cyan" onclick="doDiscover()">🔍 کشف</button>
+        <button class="btn" style="color: #ff0000;border-color: #ff0000;" onclick="closeModal()">انصراف</button>
+      </div>
+    </div>
+    <!-- تب مدیریت گروه‌ها -->
+    <div class="modal-pane" id="pane-groups">
+      <div style="display:flex; flex-direction:column; gap:12px">
+
+        <div class="bulk-hint" style="margin:0">
+          <b>گروه چیست؟</b> گروه برای دسته‌بندی ساده پرینترها استفاده می‌شود. این نما ساده‌سازی شده تا سریع‌تر گروه جدید بسازید و پرینترها را اختصاص دهید.
+        </div>
+
+        <!-- ساخت گروه جدید (ساده) -->
+        <div style="border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--bg2)">
+          <label for="new-group-name" class="form-label" style="margin-bottom:8px">۱️⃣ ایجاد گروه جدید</label>
+          <div style="display:flex; gap:8px; align-items:center">
+            <input type="text" id="new-group-name" class="form-input" placeholder="نام گروه (مثلاً: مالی، اتاق سرور)..." style="flex:1; min-width:140px" maxlength="60">
+            <!-- نگه داشتن کنترل‌های پیشرفته اما پنهان برای سازگاری JS -->
+            
+            <button class="btn btn-green" onclick="addNewGroupToSystem()" style="min-width:84px">＋ ایجاد</button>
+          </div>
+        </div>
+
+        <!-- تخصیص سریع پرینترها -->
+        <div>
+          <label for="group-mgr-filter" class="form-label">۲️⃣ تخصیص سریع پرینترها</label>
+          <input type="text" id="group-mgr-filter" class="form-input" placeholder="🔍 فیلتر پرینتر (نام یا IP)..." oninput="renderGroupManagerList()" style="margin-bottom:8px">
+          <div id="group-manager-list" style="max-height:170px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px; background:var(--bg3)">
+            <!-- لیست پرینترها با JS پر می‌شود -->
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:6px">برای اختصاص: پرینتر(ها) را انتخاب کرده، سپس از منوی ویرایش پرینتر گروه را انتخاب کنید یا از دکمه‌های سریع استفاده کنید.</div>
+        </div>
+
+        <!-- پیکربندی یکپارچه زیرشبکه و گروه‌های سفارشی -->
+        <div style="border-top:1px dashed var(--border); padding-top:10px; margin-top:10px;">
+          <label class="form-label">پیکربندی زیر شبکه و گروه های سفارشی</label>
+          <div id="office-subnets-editor" style="display:flex;flex-direction:column;gap:6px; max-height:200px; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:6px; background:var(--bg3)">
+            <!-- JS will populate rows -->
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-cyan" onclick="saveOfficeSubnets()">ذخیره و اعمال</button>
+            <button class="btn" onclick="fetchOfficeSubnets()">بازخوانی</button>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:6px">هم گروه‌های پیش‌فرض و هم گروه‌های سفارشی در این بخش قابل مدیریت است؛ تغییرات بلافاصله اعمال و ذخیره می‌شود.</div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">بستن</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MANUAL EVENT MODAL -->
+<div class="ev-modal-overlay" id="ev-modal">
+  <div class="ev-modal">
+    <button class="ev-close" onclick="closeEvModal()">×</button>
+    <div class="ev-modal-header">
+      <div class="ev-modal-icon" id="ev-modal-icon">🔧</div>
+      <div>
+        <div class="ev-modal-title" id="ev-modal-title">ثبت سرویس</div>
+        <div class="ev-modal-sub" id="ev-modal-sub">—</div>
+      </div>
+    </div>
+    <input type="hidden" id="ev-ip">
+    <input type="hidden" id="ev-type">
+    <div class="ev-field">
+      <label for="ev-notes">توضیحات <span style="color:var(--red)">*</span></label>
+      <textarea id="ev-notes" placeholder="توضیحات سرویس یا تعویض کارتریج را وارد کنید..."></textarea>
+    </div>
+    <div class="ev-field">
+      <label for="ev-tech">نام تکنسین (اختیاری)</label>
+      <input type="text" id="ev-tech" placeholder="نام تکنسین یا مسئول سرویس">
+    </div>
+    <div class="ev-modal-actions">
+      <button class="btn" style="color: #ff0000;border-color: #ff0000;" onclick="closeEvModal()">انصراف</button>
+      <button class="btn btn-cyan" id="ev-submit-btn" onclick="submitManualEvent()">✓ ثبت رویداد</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT PRINTER (ویرایش اطلاعات و گروه) -->
+<div class="modal-overlay" id="modal-edit-printer">
+  <div class="modal" style="width:450px">
+    <h3>⚙️ ویرایش اطلاعات دستگاه</h3>
+    <input type="hidden" id="edit-printer-ip">
+    <div class="form-group">
+      <label for="edit-printer-name" class="form-label">نام اصلی دستگاه</label>
+      <input type="text" id="edit-printer-name" class="form-input" placeholder="TOSHIBA e-STUDIO...">
+    </div>
+    <div class="form-group">
+      <label for="edit-printer-nickname" class="form-label">نام مستعار (Nickname)</label>
+      <input type="text" id="edit-printer-nickname" class="form-input" placeholder="مثال: حسابداری - طبقه اول">
+    </div>
+    <div class="form-group">
+      <label for="edit-printer-group-select" class="form-label">گروه / دفتر</label>
+      <div style="display:flex; gap:8px">
+        <select class="form-input" id="edit-printer-group-select" style="flex:1">
+          <option value="">(بدون گروه)</option>
+        </select>
+        <input class="form-input" id="edit-printer-group-custom" placeholder="گروه جدید..." type="text" style="flex:1">
+      </div>
+      <div id="edit-printer-group-meta" style="font-size:12px; color:var(--text3); margin-top:6px">—</div>
+      <div style="font-size:10px; color:var(--text3); margin-top:4px">می‌توانید از لیست انتخاب کنید یا نام جدید بنویسید</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="closeEditModal()">انصراف</button>
+      <button class="btn btn-cyan" onclick="savePrinterEdit()">ذخیره تغییرات</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+ 
+<!-- TONER RESET MODAL -->
+<div class="modal-overlay" id="modal-toner-reset" style="display:none" onclick="if(event.target===this) closeTonerResetModal()">
+  <div class="modal" style="width:420px">
+    <h3>🔁 تنظیم مجدد کارتریج</h3>
+    <div class="form-group">
+      <label for="toner-reset-color" class="form-label">رنگ کارتریج</label>
+      <select id="toner-reset-color" class="form-input"></select>
+    </div>
+    <div class="form-group">
+      <label for="toner-reset-level" class="form-label">درصد جدید (۰–۱۰۰)</label>
+      <input id="toner-reset-level" type="number" min="0" max="100" value="100" class="form-input">
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeTonerResetModal()">انصراف</button>
+      <button class="btn btn-green" onclick="submitTonerReset()">تأیید</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORT DATABASE (بارگذاری دیتا) -->
+<div class="modal-overlay" id="modal-import-db">
+  <div class="modal" style="width:min(760px, 94vw); max-height:90vh; overflow-y:auto">
+    <h3>📥 بارگذاری داده از فایل .db</h3>
+    
+    <!-- مرحله ۱: انتخاب فایل -->
+    <div id="import-step-1">
+      <div class="form-group">
+        <label for="import-db-file" class="form-label">فایل دیتابیس (logs.db)</label>
+        <input type="file" id="import-db-file" class="form-input" accept=".db">
+      </div>
+      <div class="form-actions">
+        <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="closeImportModal()">انصراف</button>
+        <button class="btn btn-cyan" onclick="analyzeImportFile()">تحلیل فایل...</button>
+      </div>
+    </div>
+
+    <!-- مرحله ۲: فیلتر و تایید -->
+    <div id="import-step-2" style="display:none">
+      <div id="import-summary" class="section-title" style="margin-bottom:10px; font-size:12px">خلاصه داده‌های یافت شده</div>
+      <div class="ctr-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:15px">
+        <div class="ctr-cell">
+            <div class="ctr-lbl">تعداد لاگ‌ها</div>
+            <div class="ctr-val" id="import-count-logs">0</div>
+        </div>
+        <div class="ctr-cell">
+            <div class="ctr-lbl">بازه زمانی</div>
+            <div class="ctr-val" id="import-range-logs" style="font-size:12px">—</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">چه داده‌هایی وارد شوند؟</label>
+        <div id="import-table-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--bg3)">
+          <!-- چک‌باکس جدول‌ها با JS پر می‌شوند -->
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.7">
+          پیشنهاد: برای انتقال کامل تاریخچه، «لاگ‌ها»، «شمارنده‌ها»، «تاریخچه تونر» و بخش‌های Yield Engine را انتخاب کنید.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">فیلتر پرینترها (انتخاب کنید)</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn btn-sm" type="button" onclick="setImportPrintersChecked(true)">انتخاب همه</button>
+          <button class="btn btn-sm" type="button" onclick="setImportPrintersChecked(false)">لغو همه</button>
+        </div>
+        <div id="import-printer-list" style="max-height:150px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--bg3)">
+          <!-- چک‌باکس‌ها با JS پر می‌شوند -->
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="import-filter-start" class="form-label">فیلتر تاریخ (اختیاری)</label>
+        <div style="display:flex; gap:8px">
+          <input type="date" id="import-filter-start" class="form-input" placeholder="شروع">
+          <input type="date" id="import-filter-end" class="form-input" placeholder="پایان">
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:6px">روی جدول‌هایی اعمال می‌شود که ستون تاریخ دارند.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="import-duplicate-mode" class="form-label">مدیریت داده‌های تکراری</label>
+        <select id="import-duplicate-mode" class="form-input">
+          <option value="skip" selected>رد کردن رکوردهای تکراری (پیشنهادی)</option>
+          <option value="replace">جایگزینی برای جدول‌های baseline/profile</option>
+          <option value="allow">ورود همه رکوردها حتی اگر تکراری باشند</option>
+        </select>
+      </div>
+
+      <label for="import-create-backup" style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:12px">
+        <input type="checkbox" id="import-create-backup" checked style="margin-top:3px">
+        <span>قبل از import از دیتابیس فعلی backup بگیر. این گزینه برای جلوگیری از از دست رفتن داده‌ها پیشنهاد می‌شود.</span>
+      </label>
+
+      <div class="import-warning" style="border:1px solid rgba(255,215,64,.25);background:rgba(255,215,64,.07);border-radius:8px;padding:10px;font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:12px">
+        کاربران و تنظیمات امنیتی وارد نمی‌شوند. این ابزار برای انتقال لاگ‌ها، شمارنده‌ها، تاریخچه تونر، سنسورها و داده‌های Yield Engine است.
+      </div>
+
+      <div class="form-actions">
+        <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="closeImportModal()">انصراف</button>
+        <button class="btn btn-green" onclick="confirmImport()">تایید و بارگذاری دیتا</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- MODAL CLEAR LOGS (پاکسازی هوشمند لاگ) -->
+<div class="modal-overlay" id="modal-clear-logs">
+  <div class="modal" style="width:400px">
+    <h3>🗑 پاکسازی رویدادها</h3>
+    <p style="font-size:12px; color:var(--text2); margin-bottom:15px">نوع رویدادهایی که قصد حذف آن‌ها را دارید انتخاب کنید:</p>
+    
+    <input type="hidden" id="clear-logs-ip">
+    <div id="clear-logs-types" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px">
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="ALERT" checked> <span>⚠️ هشدارها</span>
+      </label>
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="STATUS" checked> <span>📡 وضعیت</span>
+      </label>
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="PRINT"> <span style="color:var(--orange)">🖨 چاپ</span>
+      </label>
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="SERVICE"> <span style="color:var(--red)">🔧 سرویس</span>
+      </label>
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="REFILL"> <span style="color:var(--red)">🔋 شارژ</span>
+      </label>
+      <label class="users-choice-item" style="min-height:auto; padding:8px 12px">
+        <input type="checkbox" value="SNMP_COUNTER_READ_ERROR"> <span>❌ خطای SNMP</span>
+      </label>
+    </div>
+
+    <div class="auth-alert warning" style="margin-bottom:15px; font-size:11px">
+      ⚠️ توجه: پس از حذف، بازیابی داده‌ها امکان‌پذیر نخواهد بود.
+    </div>
+
+    <div class="form-actions">
+      <button class="btn" style="border-color:var(--border);color:var(--text)" onclick="closeClearLogsModal()">انصراف</button>
+      <button class="btn btn-red" onclick="doClearLogs()">× حذف انتخاب شده‌ها</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRMATION MODAL (تایید حذف / اقدام خطرناک) -->
+<div class="modal-overlay" id="confirm-modal-overlay">
+  <div class="modal" style="width:420px">
+    <h3 id="confirm-modal-title">تایید عمل</h3>
+    <p id="confirm-modal-message" style="font-size:12px; color:var(--text2); margin-bottom:20px">آیا مطمئن هستید؟</p>
+    <div class="auth-alert warning" style="margin-bottom:15px; font-size:11px">
+      ⚠️ این عمل قابل بازگشت نخواهد بود.
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" id="confirm-modal-cancel">انصراف</button>
+      <button class="btn btn-red" id="confirm-modal-confirm">تایید و حذف</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+

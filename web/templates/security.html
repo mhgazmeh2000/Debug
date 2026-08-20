@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}امنیت سیستم{% endblock %}
+
+{% block head %}
+<style>
+  .security-page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .security-header,
+  .security-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.16);
+  }
+  .security-header {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .security-header h1 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: var(--text);
+  }
+  .security-header p {
+    margin: 0;
+    color: var(--text2);
+    line-height: 1.8;
+  }
+  .security-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .security-stat {
+    padding: 16px;
+  }
+  .security-stat-label {
+    color: var(--text3);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .security-stat-value {
+    font-size: 28px;
+    font-family: var(--mono);
+    color: var(--text);
+    font-weight: 700;
+  }
+  .security-stat-note {
+    margin-top: 8px;
+    color: var(--text2);
+    font-size: 12px;
+  }
+  .security-card {
+    padding: 18px;
+  }
+  .security-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .security-card-head h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text);
+  }
+  .security-muted {
+    color: var(--text2);
+    font-size: 12px;
+  }
+  .security-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .security-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text3);
+    font-size: 12px;
+  }
+  .security-field .form-input {
+    width: 100%;
+  }
+  .security-table-wrap {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .security-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+  }
+  .security-table th,
+  .security-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    vertical-align: top;
+    font-size: 12px;
+  }
+  .security-table th {
+    background: rgba(255,255,255,.03);
+    color: var(--text3);
+    font-family: var(--mono);
+    letter-spacing: .4px;
+  }
+  .security-table td {
+    color: var(--text);
+  }
+  .security-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: var(--mono);
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .security-badge.info {
+    color: var(--cyan);
+    background: rgba(0,212,255,.08);
+    border-color: rgba(0,212,255,.24);
+  }
+  .security-badge.warning {
+    color: var(--orange);
+    background: rgba(255,112,67,.08);
+    border-color: rgba(255,112,67,.24);
+  }
+  .security-badge.critical {
+    color: var(--red);
+    background: rgba(255,61,61,.08);
+    border-color: rgba(255,61,61,.24);
+  }
+  .security-status.ok {
+    color: var(--green);
+  }
+  .security-status.fail {
+    color: var(--red);
+  }
+  .security-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .security-list-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.02);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .security-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text2);
+  }
+  @media (max-width: 768px) {
+    .security-page { padding: 14px; }
+    .security-header h1 { font-size: 20px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="security-page">
+  <section class="security-header">
+    <div>
+      <h1>🛡️ داشبورد امنیت</h1>
+      <p>نمایش رویدادهای امنیتی، تلاش‌های ورود ناموفق، وضعیت هشدارها و IPهای پرتکرار. این صفحه فقط برای ادمین قابل مشاهده است.</p>
+    </div>
+    <div class="security-actions">
+      <button class="btn btn-cyan" type="button" onclick="reloadSecurityData()">↻ بروزرسانی</button>
+      <a class="btn btn-green" href="{{ url_for('users.users_page') }}">👤 مدیریت کاربران</a>
+      <a class="btn btn-cyan" href="{{ url_for('dashboard.index') }}">← بازگشت به داشبورد</a>
+    </div>
+  </section>
+
+  <section class="security-grid">
+    <article class="security-card security-stat">
+      <div class="security-stat-label">ورود ناموفق ۲۴ ساعت اخیر</div>
+      <div class="security-stat-value" id="stat-failed-24h">—</div>
+      <div class="security-stat-note">شمار تلاش‌های ناموفق اخیر</div>
+    </article>
+    <article class="security-card security-stat">
+      <div class="security-stat-label">ورود موفق ۲۴ ساعت اخیر</div>
+      <div class="security-stat-value" id="stat-success-24h">—</div>
+      <div class="security-stat-note">شمار احراز هویت‌های موفق</div>
+    </article>
+    <article class="security-card security-stat">
+      <div class="security-stat-label">کل رویدادها در ۷ روز اخیر</div>
+      <div class="security-stat-value" id="stat-total-7d">—</div>
+      <div class="security-stat-note">تمام رویدادهای امنیتی ثبت‌شده</div>
+    </article>
+    <article class="security-card security-stat">
+      <div class="security-stat-label">هشدار و بحرانی در ۷ روز اخیر</div>
+      <div class="security-stat-value" id="stat-warnings-7d">—</div>
+      <div class="security-stat-note">سطح warning و critical</div>
+    </article>
+    <article class="security-card security-stat">
+      <div class="security-stat-label">رویداد بحرانی ۷ روز اخیر</div>
+      <div class="security-stat-value" id="stat-critical-7d">—</div>
+      <div class="security-stat-note">فقط severity=critical</div>
+    </article>
+  </section>
+
+  <section class="security-card">
+    <div class="security-card-head">
+      <div>
+        <h2>IPهای پرتکرار در failed login</h2>
+        <div class="security-muted">بازه زمانی: ۷ روز اخیر</div>
+      </div>
+      <div class="security-muted" id="top-ip-status">در حال دریافت...</div>
+    </div>
+    <div id="top-ip-list" class="security-list">
+      <div class="security-empty">در حال بارگذاری...</div>
+    </div>
+  </section>
+
+  <section class="security-card">
+    <div class="security-card-head">
+      <div>
+        <h2>فیلتر رویدادهای امنیتی</h2>
+        <div class="security-muted">نمایش تازه‌ترین رخدادها با قابلیت محدودسازی بر اساس نوع، شدت و شناسه کاربر</div>
+      </div>
+      <div class="security-muted" id="events-status">در حال دریافت...</div>
+    </div>
+
+    <div class="security-filters">
+      <div class="security-field">
+        <label for="filter-event-type">نوع رویداد</label>
+        <select id="filter-event-type" class="form-input">
+          <option value="">همه</option>
+        </select>
+      </div>
+      <div class="security-field">
+        <label for="filter-severity">شدت</label>
+        <select id="filter-severity" class="form-input">
+          <option value="">همه</option>
+          <option value="info">info</option>
+          <option value="warning">warning</option>
+          <option value="critical">critical</option>
+        </select>
+      </div>
+      <div class="security-field">
+        <label for="filter-user-id">شناسه کاربر</label>
+        <input id="filter-user-id" class="form-input" type="number" min="1" placeholder="مثلاً 1">
+      </div>
+      <div class="security-field">
+        <label for="filter-limit">تعداد</label>
+        <select id="filter-limit" class="form-input">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="250">250</option>
+          <option value="500">500</option>
+        </select>
+      </div>
+      <div class="security-field">
+        <button class="btn btn-cyan" type="button" onclick="loadEvents()">🔎 اعمال فیلتر</button>
+      </div>
+    </div>
+
+    <div class="security-table-wrap" style="margin-top:16px">
+      <table class="security-table">
+        <thead>
+          <tr>
+            <th>زمان</th>
+            <th>نوع رویداد</th>
+            <th>شدت</th>
+            <th>وضعیت</th>
+            <th>کاربر</th>
+            <th>IP</th>
+            <th>Endpoint</th>
+            <th>جزئیات</th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody">
+          <tr><td colspan="8" class="security-empty">در حال بارگذاری...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return escapeHtml(value);
+    return new Intl.DateTimeFormat('fa-IR', {
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    }).format(date);
+  }
+
+  function badgeClass(severity) {
+    return ['info', 'warning', 'critical'].includes(severity) ? severity : 'info';
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || data.message || 'خطا در دریافت اطلاعات');
+    }
+    return data;
+  }
+
+  async function loadStats() {
+    const data = await fetchJson('/api/security/stats');
+    document.getElementById('stat-failed-24h').textContent = data.failed_logins_24h ?? 0;
+    document.getElementById('stat-success-24h').textContent = data.successful_logins_24h ?? 0;
+    document.getElementById('stat-total-7d').textContent = data.total_events_7d ?? 0;
+    document.getElementById('stat-warnings-7d').textContent = data.warnings_7d ?? 0;
+    document.getElementById('stat-critical-7d').textContent = data.critical_events_7d ?? 0;
+
+    const topIpList = document.getElementById('top-ip-list');
+    const topIpStatus = document.getElementById('top-ip-status');
+    const rows = Array.isArray(data.top_failed_ips_7d) ? data.top_failed_ips_7d : [];
+    topIpStatus.textContent = rows.length ? `${rows.length} IP ثبت شد` : 'بدون IP مشکوک';
+
+    if (!rows.length) {
+      topIpList.innerHTML = '<div class="security-empty">در ۷ روز اخیر IP پرتکراری برای failed login ثبت نشده است.</div>';
+      return;
+    }
+
+    topIpList.innerHTML = rows.map((row, index) => `
+      <div class="security-list-item">
+        <div>#${index + 1} — ${escapeHtml(row.ip || 'نامشخص')}</div>
+        <strong>${escapeHtml(row.count ?? 0)}</strong>
+      </div>
+    `).join('');
+  }
+
+  async function loadEvents() {
+    const tbody = document.getElementById('events-tbody');
+    const status = document.getElementById('events-status');
+    status.textContent = 'در حال دریافت...';
+    tbody.innerHTML = '<tr><td colspan="8" class="security-empty">در حال بارگذاری...</td></tr>';
+
+    const params = new URLSearchParams();
+    const eventType = document.getElementById('filter-event-type').value;
+    const severity = document.getElementById('filter-severity').value;
+    const userId = document.getElementById('filter-user-id').value.trim();
+    const limit = document.getElementById('filter-limit').value;
+
+    if (eventType) params.set('event_type', eventType);
+    if (severity) params.set('severity', severity);
+    if (userId) params.set('user_id', userId);
+    if (limit) params.set('limit', limit);
+
+    try {
+      const data = await fetchJson(`/api/security/events?${params.toString()}`);
+      const events = Array.isArray(data.events) ? data.events : [];
+      status.textContent = `${events.length} رویداد نمایش داده شد`;
+
+      const select = document.getElementById('filter-event-type');
+      const knownValues = new Set(Array.from(select.options).map(option => option.value));
+      (data.available_types || []).forEach(item => {
+        const value = typeof item === 'string' ? item : item.value;
+        const label = typeof item === 'string' ? item : item.label;
+        if (!knownValues.has(value)) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          select.appendChild(option);
+        }
+      });
+
+      if (!events.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="security-empty">رویدادی با این فیلترها پیدا نشد.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = events.map(event => `
+        <tr>
+          <td>${formatTimestamp(event.timestamp)}</td>
+          <td><span class="security-event-label">${escapeHtml(event.event_type_fa || event.event_type || '—')}</span></td>
+          <td><span class="security-badge ${badgeClass(event.severity)}">${escapeHtml(event.severity || 'info')}</span></td>
+          <td><span class="security-status ${event.success ? 'ok' : 'fail'}">${event.success ? 'موفق' : 'ناموفق'}</span></td>
+          <td>${escapeHtml(event.user_identifier || (event.user_id ? 'user#' + event.user_id : '—'))}</td>
+          <td>${escapeHtml(event.ip_address || '—')}</td>
+          <td>${escapeHtml(event.endpoint || '—')}</td>
+          <td>${escapeHtml(event.details_text || event.details || '—')}</td>
+        </tr>
+      `).join('');
+    } catch (error) {
+      status.textContent = error.message;
+      tbody.innerHTML = `<tr><td colspan="8" class="security-empty">${escapeHtml(error.message)}</td></tr>`;
+    }
+  }
+
+  async function reloadSecurityData() {
+    try {
+      await Promise.all([loadStats(), loadEvents()]);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', reloadSecurityData);
+</script>
+{% endblock %}
