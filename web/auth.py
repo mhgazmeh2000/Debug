@@ -15,7 +15,10 @@ from flask_login import LoginManager
 from config import settings
 from models import User
 from utils import generate_reset_token, hash_token, send_email, verify_recaptcha, verify_reset_token
+import logging
 from web.security import limiter
+log = logging.getLogger("PrinterMonitor")
+
 from core.security_audit import (
     log_security_event, SecurityEvent, Severity,
     count_recent_failed_logins,
@@ -51,6 +54,10 @@ def init_auth(app):
     app.config.setdefault("MAIL_USE_TLS", settings.MAIL_USE_TLS)
     app.config.setdefault("MAIL_USERNAME", settings.MAIL_USERNAME)
     app.config.setdefault("MAIL_PASSWORD", settings.MAIL_PASSWORD)
+    app.config.setdefault("MAIL_USE_OAUTH", settings.MAIL_USE_OAUTH)
+    app.config.setdefault("MAIL_OAUTH_CLIENT_ID", settings.MAIL_OAUTH_CLIENT_ID)
+    app.config.setdefault("MAIL_OAUTH_CLIENT_SECRET", settings.MAIL_OAUTH_CLIENT_SECRET)
+    app.config.setdefault("MAIL_OAUTH_REFRESH_TOKEN", settings.MAIL_OAUTH_REFRESH_TOKEN)
     app.config.setdefault("GOOGLE_CLIENT_ID", settings.GOOGLE_CLIENT_ID)
     app.config.setdefault("GOOGLE_CLIENT_SECRET", settings.GOOGLE_CLIENT_SECRET)
     app.config.setdefault("RECAPTCHA_SITE_KEY", settings.RECAPTCHA_SITE_KEY)
@@ -385,6 +392,7 @@ def register():
 @limiter.limit("3 per minute; 5 per hour", methods=["POST"])
 def forgot_password():
     message = None
+    error = None
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         user = User.find_by_email(email)
@@ -407,15 +415,21 @@ def forgot_password():
             reset_link = url_for("auth.reset_password", token=token, _external=True)
             text_body = (
                 f"برای بازنشانی رمز عبور روی لینک زیر کلیک کنید:\n{reset_link}\n\n"
-                "این لینک فقط یک‌بار و تا ۱ ساعت معتبر است."
+                "این لینک فقط یکبار و تا ۱ ساعت معتبر است."
             )
-            html_body = f"<p>برای بازنشانی رمز عبور روی لینک زیر کلیک کنید:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>این لینک فقط یک‌بار و تا ۱ ساعت معتبر است.</p>"
-            send_email("بازنشانی رمز عبور", user.email, text_body, html_body)
-        message = "اگر ایمیل در سیستم موجود باشد، لینک بازنشانی ارسال می‌شود."
+            html_body = f"<p>برای بازنشانی رمز عبور روی لینک زیر کلیک کنید:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>این لینک فقط یکبار و تا ۱ ساعت معتبر است.</p>"
+            email_sent = send_email("بازنشانی رمز عبور", user.email, text_body, html_body)
+            if email_sent:
+                message = "لینک بازنشانی رمز عبور با موفقیت به ایمیل شما ارسال شد."
+            else:
+                error = "ارسال ایمیل با خطا مواجه شد. لطفاً بعدا دوباره تلاشش کنید."
+        else:
+            error = "ایمیل وارد شده در سیستم موجود نیست."
 
     return render_template(
         "forgot_password.html",
         message=message,
+        error=error,
         load_dashboard_scripts=False,
     )
 
@@ -476,7 +490,7 @@ def google_login():
     from flask import session
     nonce = secrets.token_urlsafe(32)
     session['oauth_nonce'] = nonce
-    redirect_uri = url_for("auth.google_callback", _external=True)
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or url_for("auth.google_callback", _external=True)
     return oauth.google.authorize_redirect(redirect_uri, nonce=nonce)
 
 
@@ -487,17 +501,42 @@ def google_callback():
         return redirect(url_for("auth.login"))
     ctx = _audit_context()
     try:
-        token = oauth.google.authorize_access_token()
-        # دریافت و بررسی nonce
-        from flask import session
-        nonce = session.pop('oauth_nonce', None)
-        profile = oauth.google.parse_id_token(token, nonce=nonce) or {}
+        # توکن را مستقیماً از Google دریافت کن (بدون JWK verification)
+        import requests as _requests
+        token_resp = _requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": request.args.get("code", ""),
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI or url_for("auth.google_callback", _external=True),
+                "grant_type": "authorization_code",
+            },
+            timeout=15,
+        )
+        token_resp.raise_for_status()
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise ValueError("No access_token in token response")
+
+        # اطلاعات کاربر را از userinfo endpoint بگیر (بدون نیاز به JWK)
+        userinfo_resp = _requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
+        userinfo_resp.raise_for_status()
+        profile = userinfo_resp.json()
+        if not profile.get("email"):
+            raise ValueError("No email in Google userinfo response")
     except Exception as e:
+        log.exception("OAuth callback error: %s", e)
         log_security_event(
             SecurityEvent.OAUTH_FAILURE, severity=Severity.WARNING,
-            success=False, details=f"Token/nonce error: {e}", **ctx,
+            success=False, details=str(e), **ctx,
         )
-        flash("خطا در ورود با گوگل: اطلاعات احراز هویت نامعتبر است", "error")
+        flash("خطا در ورود با گوگل: " + str(e), "error")
         return redirect(url_for("auth.login"))
 
     email = (profile.get("email") or "").strip().lower()

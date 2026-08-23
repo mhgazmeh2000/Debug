@@ -60,3 +60,10 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# ===== Runtime state files =====
+logs.db.active
+sensor_alert_config.json
+debug_js.txt
+.freebuffpreview-*.log
+.freebuffpreview-*.log.err

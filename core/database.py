@@ -352,6 +352,15 @@ def init_db():
         "ALTER TABLE users ADD COLUMN last_login_at TEXT",
         "ALTER TABLE users ADD COLUMN allowed_offices TEXT NOT NULL DEFAULT '[]'",
         "ALTER TABLE users ADD COLUMN allowed_modules TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE users ADD COLUMN sensor_alert_enabled INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN sensor_temp_warning REAL DEFAULT 30",
+        "ALTER TABLE users ADD COLUMN sensor_temp_critical REAL DEFAULT 35",
+        "ALTER TABLE users ADD COLUMN sensor_hum_warning_high REAL DEFAULT 70",
+        "ALTER TABLE users ADD COLUMN sensor_hum_critical_high REAL DEFAULT 80",
+        "ALTER TABLE users ADD COLUMN sensor_hum_warning_low REAL DEFAULT 20",
+        "ALTER TABLE users ADD COLUMN sensor_alert_cooldown_minutes INTEGER DEFAULT 30",
+        "ALTER TABLE users ADD COLUMN sensor_alert_start_hour INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN sensor_alert_end_hour INTEGER DEFAULT 24",
     ):
         try:
             c.execute(column_sql)
@@ -399,6 +408,15 @@ def _user_row_to_dict(row) -> Optional[dict]:
         "last_login_at": row[12],
         "allowed_offices": _load_json_list(row[13] if len(row) > 13 else None),
         "allowed_modules": _load_json_list(row[14] if len(row) > 14 else None),
+        "sensor_alert_enabled": bool(row[15]) if len(row) > 15 else False,
+        "sensor_temp_warning": row[16] if len(row) > 16 else 30,
+        "sensor_temp_critical": row[17] if len(row) > 17 else 35,
+        "sensor_hum_warning_high": row[18] if len(row) > 18 else 70,
+        "sensor_hum_critical_high": row[19] if len(row) > 19 else 80,
+        "sensor_hum_warning_low": row[20] if len(row) > 20 else 20,
+        "sensor_alert_cooldown_minutes": row[21] if len(row) > 21 else 30,
+        "sensor_alert_start_hour": row[22] if len(row) > 22 else 0,
+        "sensor_alert_end_hour": row[23] if len(row) > 23 else 24,
     }
 
 
@@ -416,7 +434,10 @@ def count_users() -> int:
 _USER_SELECT_COLS = '''
     id, username, email, password_hash, google_id, reset_token_hash,
     reset_token_expires, role, is_verified, is_active, created_at,
-    updated_at, last_login_at, allowed_offices, allowed_modules
+    updated_at, last_login_at, allowed_offices, allowed_modules,
+    sensor_alert_enabled, sensor_temp_warning, sensor_temp_critical,
+    sensor_hum_warning_high, sensor_hum_critical_high, sensor_hum_warning_low,
+    sensor_alert_cooldown_minutes, sensor_alert_start_hour, sensor_alert_end_hour
 '''
 
 
@@ -576,6 +597,26 @@ def update_user_access(user_id: int, allowed_offices=None, allowed_modules=None)
         (_dump_json_list(allowed_offices), _dump_json_list(allowed_modules),
          datetime.now().isoformat(), user_id),
         f"access for user {user_id}",
+    )
+
+
+def update_user_sensor_alert(user_id: int, enabled=False, temp_warning=30, temp_critical=35,
+                             hum_warning_high=70, hum_critical_high=80, hum_warning_low=20,
+                             cooldown_minutes=30, start_hour=0, end_hour=24) -> bool:
+    return _execute_user_update(
+        '''
+        UPDATE users
+        SET sensor_alert_enabled = ?, sensor_temp_warning = ?, sensor_temp_critical = ?,
+            sensor_hum_warning_high = ?, sensor_hum_critical_high = ?, sensor_hum_warning_low = ?,
+            sensor_alert_cooldown_minutes = ?, sensor_alert_start_hour = ?, sensor_alert_end_hour = ?,
+            updated_at = ?
+        WHERE id = ?
+        ''',
+        (int(enabled), temp_warning, temp_critical,
+         hum_warning_high, hum_critical_high, hum_warning_low,
+         cooldown_minutes, start_hour, end_hour,
+         datetime.now().isoformat(), user_id),
+        f"sensor alert settings for user {user_id}",
     )
 
 

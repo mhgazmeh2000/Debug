@@ -41,6 +41,10 @@ def create_app() -> Flask:
         MAIL_USE_TLS=settings.MAIL_USE_TLS,
         MAIL_USERNAME=settings.MAIL_USERNAME,
         MAIL_PASSWORD=settings.MAIL_PASSWORD,
+        MAIL_USE_OAUTH=settings.MAIL_USE_OAUTH,
+        MAIL_OAUTH_CLIENT_ID=settings.MAIL_OAUTH_CLIENT_ID,
+        MAIL_OAUTH_CLIENT_SECRET=settings.MAIL_OAUTH_CLIENT_SECRET,
+        MAIL_OAUTH_REFRESH_TOKEN=settings.MAIL_OAUTH_REFRESH_TOKEN,
         GOOGLE_CLIENT_ID=settings.GOOGLE_CLIENT_ID,
         GOOGLE_CLIENT_SECRET=settings.GOOGLE_CLIENT_SECRET,
         RECAPTCHA_SITE_KEY=settings.RECAPTCHA_SITE_KEY,
@@ -119,6 +123,8 @@ def create_app() -> Flask:
             "users.api_delete_user": "users",
             "users.api_user_add": "users",
             "users.api_user_access": "users",
+            "users.api_sensor_alert_get": "users",
+            "users.api_sensor_alert_set": "users",
         }
         module_name = endpoint_modules.get(endpoint)
         if module_name and not user_can_access_module(current_user, module_name):

@@ -13,6 +13,7 @@
       <button class="btn btn-ghost" type="button" onclick="openAccessHelpModal()">ⓘ راهنمای نقش‌ها و دسترسی‌ها</button>
       <button class="btn btn-green" type="button" onclick="openUserAddModal()">➕ افزودن کاربر</button>
       <button class="btn btn-cyan" type="button" onclick="loadUsers()">↻ بارگذاری کاربران</button>
+      <button class="btn btn-yellow" type="button" onclick="openGlobalSensorAlertModal()">🌡️ تنظیمات هشدار سنسور</button>
       <a class="btn btn-cyan" href="{{ url_for('dashboard.index') }}">← بازگشت به داشبورد</a>
     </div>
   </header>
@@ -192,6 +193,47 @@
     <div class="form-actions users-modal-actions">
       <button class="btn btn-cyan" id="save-access-btn" type="button" onclick="saveAccess(event)">ذخیره دسترسی</button>
       <button class="btn users-btn-cancel" type="button" onclick="closeUserAccessModal()">انصراف</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- Global Sensor Alert Modal -->
+<div class="modal-overlay" id="global-sensor-alert-modal" style="display:none" onclick="if (event.target === this) closeGlobalSensorAlertModal()">
+  <div class="modal users-modal" onclick="event.stopPropagation()">
+    <div class="users-modal-header"><div>
+      <h3>تطغیمات هشدار سنسور</h3>
+      <p class="users-modal-hint">هنگامی که دما یا رطوبت از آستانه‌های تعریف‌شده فراتر رود، ایمیل هشدار به گیرندگان انتخاب شده ارسال موشوم شود.</p>
+    </div></div>
+    <div class="users-modal-body">
+      <div class="form-group">
+        <label class="users-choice-item" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="gsa-enabled">
+          <span class="users-choice-copy"><strong>فعال‌سازی هشدار سنسور</strong><small>با فعال شدن، ایمیل هشدار به گیرندگان ارسال موشوم شود.</small></span>
+        </label>
+      </div>
+      <fieldset id="gsa-fields" class="users-access-fields" style="border:1px solid var(--border-color,#2a3a2a);border-radius:10px;padding:16px">
+        <div class="users-form-grid">
+          <div class="form-group"><label class="form-label">آستانه دما — هشدار (°C)</label><input class="form-input" id="gsa-temp-warning" type="number" step="0.1" value="30"></div>
+          <div class="form-group"><label class="form-label">آستانه دما — بحرانی (°C)</label><input class="form-input" id="gsa-temp-critical" type="number" step="0.1" value="35"></div>
+          <div class="form-group"><label class="form-label">رطوبت بالا — هشدار (%)</label><input class="form-input" id="gsa-hum-high-warning" type="number" value="70"></div>
+          <div class="form-group"><label class="form-label">رطوبت بالا — بحرانی (%)</label><input class="form-input" id="gsa-hum-high-critical" type="number" value="80"></div>
+          <div class="form-group"><label class="form-label">رطوبت پایین — هشدار (%)</label><input class="form-input" id="gsa-hum-low-warning" type="number" value="20"></div>
+        </div>
+        <div class="users-form-grid" style="margin-top:12px">
+          <div class="form-group"><label class="form-label">فاصله ارسال (دقیقه)</label><input class="form-input" id="gsa-cooldown" type="number" min="1" value="30"><small class="users-field-note">حداقل فاصله بین دو ایمیل هشدار</small></div>
+          <div class="form-group"><label class="form-label">ساعت شروع بازه ارسال</label><input class="form-input" id="gsa-start-hour" type="number" min="0" max="23" value="0"></div>
+          <div class="form-group"><label class="form-label">ساعت پایان بازه ارسال</label><input class="form-input" id="gsa-end-hour" type="number" min="0" max="24" value="24"></div>
+        </div>
+        <div class="form-group" style="margin-top:16px"><label class="form-label">گیرندگان ایمیل (کاربران سیستم)</label><small class="users-field-note" style="display:block;margin-bottom:8px">کاربرانی که ایمیل آن‌ها در سیستم ثبت شده و می‌خواهند هشدار دریافت کنند.</small><div id="gsa-user-list" class="users-choice-grid" style="max-height:200px;overflow-y:auto"></div></div>
+        <div class="form-group" style="margin-top:12px"><label class="form-label">ایمیل‌های اضافی (غیر از کاربران سیستم)</label><small class="users-field-note" style="display:block;margin-bottom:8px">ایمیل‌هایی که در لیست کاربران نیستند. هر ایمیل در یک خط.</small><textarea class="form-input" id="gsa-extra-emails" rows="3" placeholder="example@gmail.com" style="resize:vertical;min-height:60px"></textarea></div>
+      </fieldset>
+    </div>
+    <div class="form-actions users-modal-actions">
+      <button class="btn btn-cyan" id="gsa-save-btn" onclick="saveGlobalSensorAlert()">ذخیره تطغیمات</button>
+      <button class="btn users-btn-cancel" onclick="closeGlobalSensorAlertModal()">انصراف</button>
     </div>
   </div>
 </div>
@@ -516,6 +558,7 @@ function createUsersRow(user) {
           ${String(user.id) === String(window.currentUserId) ? '' : user.role === 'admin'
             ? '<span class="users-full-access-badge">دسترسی کامل</span>'
             : `<button class="btn btn-green users-action-btn" onclick="openUserAccessModal(${user.id})">تنظیم دسترسی</button>`}
+          <button class="btn btn-yellow users-action-btn" onclick="resetPassword(event, ${user.id}, '${escapeHtml(user.username)}')">📧 بازیابی رمزعبور</button>
           <button class="btn btn-red users-action-btn" onclick="deleteUser(event, ${user.id}, '${escapeHtml(user.username)}')">Delete</button>
         </div>
       </td>
@@ -645,6 +688,27 @@ async function deleteUser(event, userId, username) {
   }
 }
 
+async function resetPassword(event, userId, username) {
+  const button = event?.currentTarget;
+  setButtonLoading(button, true, 'در حال ارسال ایمیل...');
+  try {
+    const data = await requestJson(`/api/users/${userId}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+    const msg = data.email_sent !== false
+      ? `لینک بازنشانی رمزعبور به ایمیل «${username}» ارسال شد.`
+      : `لینک ایجاد شد اما ارسال ایمیل ناموفق بود.`;
+    toast(msg, data.email_sent !== false ? 's' : 'w');
+    setUsersStatus(msg, data.email_sent !== false ? 'success' : 'error');
+  } catch (err) {
+    toast(err.message, 'e');
+    setUsersStatus(err.message, 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 async function saveAccess(event) {
   if (!accessUserId) return;
   const button = event?.currentTarget || document.getElementById('save-access-btn');
@@ -691,5 +755,74 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUsers();
   });
 });
+
+
+
+/* Global Sensor Alert */
+function updateGsaFieldsState() {
+  var e = document.getElementById('gsa-enabled');
+  var f = document.getElementById('gsa-fields');
+  if (f) { f.style.opacity = e.checked ? '1' : '0.5'; f.style.pointerEvents = e.checked ? 'auto' : 'none'; }
+}
+
+async function openGlobalSensorAlertModal() {
+  var ul = document.getElementById('gsa-user-list');
+  if (!usersCache.length) try { await loadUsers({silent:true}); } catch(e) {}
+  ul.innerHTML = usersCache.map(function(u) {
+    return '<label class="users-choice-item"><input type="checkbox" name="gsa_users" value="' + u.id + '"><span class="users-choice-copy"><strong>' + escapeHtml(u.username) + '</strong><small>' + escapeHtml(u.email) + '</small></span></label>';
+  }).join('');
+  try {
+    var cfg = await requestJson('/api/sensor-alert');
+    document.getElementById('gsa-enabled').checked = !!cfg.enabled;
+    document.getElementById('gsa-temp-warning').value = cfg.temp_warning != null ? cfg.temp_warning : 30;
+    document.getElementById('gsa-temp-critical').value = cfg.temp_critical != null ? cfg.temp_critical : 35;
+    document.getElementById('gsa-hum-high-warning').value = cfg.hum_warning_high != null ? cfg.hum_warning_high : 70;
+    document.getElementById('gsa-hum-high-critical').value = cfg.hum_critical_high != null ? cfg.hum_critical_high : 80;
+    document.getElementById('gsa-hum-low-warning').value = cfg.hum_warning_low != null ? cfg.hum_warning_low : 20;
+    document.getElementById('gsa-cooldown').value = cfg.cooldown_minutes != null ? cfg.cooldown_minutes : 30;
+    document.getElementById('gsa-start-hour').value = cfg.start_hour != null ? cfg.start_hour : 0;
+    document.getElementById('gsa-end-hour').value = cfg.end_hour != null ? cfg.end_hour : 24;
+    var ids = new Set((cfg.user_ids || []).map(String));
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = ids.has(String(cb.value)); });
+    var extra = (cfg.recipient_emails || []).filter(function(e) { return !usersCache.some(function(u) { return u.email === e; }); });
+    document.getElementById('gsa-extra-emails').value = extra.join('\n');
+  } catch(err) { toast(err.message, 'e'); }
+  updateGsaFieldsState();
+  document.getElementById('global-sensor-alert-modal').style.display = 'flex';
+}
+
+function closeGlobalSensorAlertModal() {
+  document.getElementById('global-sensor-alert-modal').style.display = 'none';
+}
+
+async function saveGlobalSensorAlert() {
+  var btn = document.getElementById('gsa-save-btn');
+  var uids = getChoiceValues('gsa-user-list');
+  var uemails = usersCache.filter(function(u) { return uids.includes(String(u.id)) && u.email; }).map(function(u) { return u.email; });
+  var raw = document.getElementById('gsa-extra-emails').value || '';
+  var extra = raw.split(/[\r\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);});
+  var all = Array.from(new Set(uemails.concat(extra)));
+  var p = {
+    enabled: document.getElementById('gsa-enabled').checked,
+    user_ids: uids.map(Number), recipient_emails: all,
+    temp_warning: parseFloat(document.getElementById('gsa-temp-warning').value)||30,
+    temp_critical: parseFloat(document.getElementById('gsa-temp-critical').value)||35,
+    hum_warning_high: parseFloat(document.getElementById('gsa-hum-high-warning').value)||70,
+    hum_critical_high: parseFloat(document.getElementById('gsa-hum-high-critical').value)||80,
+    hum_warning_low: parseFloat(document.getElementById('gsa-hum-low-warning').value)||20,
+    cooldown_minutes: parseInt(document.getElementById('gsa-cooldown').value)||30,
+    start_hour: parseInt(document.getElementById('gsa-start-hour').value)||0,
+    end_hour: parseInt(document.getElementById('gsa-end-hour').value)||24
+  };
+  setButtonLoading(btn, true);
+  try {
+    await requestJson('/api/sensor-alert', {method:'POST', body:JSON.stringify(p)});
+    toast('تطغیمات هشدار ذخیره شد.', 's');
+    closeGlobalSensorAlertModal();
+  } catch(err) { toast(err.message, 'e'); }
+  finally { setButtonLoading(btn, false); }
+}
+document.getElementById('gsa-enabled')?.addEventListener('change', updateGsaFieldsState);
+
 </script>
 {% endblock %}

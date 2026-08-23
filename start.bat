@@ -42,6 +42,8 @@ set "PY_CMD=python"
 if defined PY_CMD goto python_found
 
 :: Priority 4: common install locations
+if exist "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" set "PY_CMD=%LOCALAPPDATA%\Programs\Python\Python314\python.exe"
+if defined PY_CMD goto python_found
 if exist "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" set "PY_CMD=%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
 if defined PY_CMD goto python_found
 if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY_CMD=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
@@ -49,6 +51,8 @@ if defined PY_CMD goto python_found
 if exist "%LOCALAPPDATA%\Programs\Python\Python311\python.exe" set "PY_CMD=%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
 if defined PY_CMD goto python_found
 if exist "%LOCALAPPDATA%\Programs\Python\Python310\python.exe" set "PY_CMD=%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+if defined PY_CMD goto python_found
+if exist "%USERPROFILE%\AppData\Local\Programs\Python\Python314\python.exe" set "PY_CMD=%USERPROFILE%\AppData\Local\Programs\Python\Python314\python.exe"
 if defined PY_CMD goto python_found
 if exist "%USERPROFILE%\AppData\Local\Programs\Python\Python313\python.exe" set "PY_CMD=%USERPROFILE%\AppData\Local\Programs\Python\Python313\python.exe"
 if defined PY_CMD goto python_found
@@ -113,8 +117,34 @@ pause
 exit /b 1
 
 :python_error
-echo  [ERROR] Python not found. Install Python 3.10+
-echo  Download: https://www.python.org/downloads/
-echo  Make sure "Add Python to PATH" is checked during install.
+echo.
+echo  [ERROR] Python not found or not working!
+echo.
+echo  -----------------------------------------------------------
+echo  Diagnosis:
+echo    The file .venv\Scripts\python.exe exists but may be broken.
+echo    This happens when Python was uninstalled or moved.
+echo.
+echo  Fix (choose one):
+echo.
+echo    Option A - Reinstall Python (recommended):
+echo      1. Download Python 3.10+: https://www.python.org/downloads/
+echo      2. Run installer and CHECK "Add Python to PATH"
+echo      3. Delete the .venv folder, then run start.bat again
+echo.
+echo    Option B - Use system Python:
+echo      Open CMD and run:
+echo        python --version
+echo      If that works, delete the .venv folder and rerun start.bat
+echo.
+echo    Option C - Recreate venv (if Python is installed):
+echo      Open CMD in this folder and run:
+echo        rmdir /s /q .venv
+echo        python -m venv .venv
+echo        .venv\Scripts\pip install -r requirements.txt
+echo.
+echo  -----------------------------------------------------------
+echo  Debug info: check %CD%\.venv\Scripts\python.exe
+echo.
 pause
 exit /b 1

@@ -17,6 +17,7 @@ from datetime import datetime
 from core.snmp.protocol import snmp_get
 from core import store
 from core.database import add_event, record_sensor_readings
+from core.sensor_alert import check_and_send_sensor_alert
 
 log = logging.getLogger("PrinterMonitor")
 
@@ -246,6 +247,12 @@ def collect_sensor(ip: str, name: str, community: str, start: float) -> dict:
             previous = store.printer_data.get(ip, {}) or {}
         _register_sensor_changes(ip, previous, readings)
         record_sensor_readings(ip, readings, timestamp=timestamp)
+
+        # ارسال ایمیل هشدار به کاربران
+        try:
+            check_and_send_sensor_alert(ip, name, readings)
+        except Exception as e:
+            log.exception(f"Sensor alert email error for {ip}: {e}")
 
         elapsed = int((time.time() - start) * 1000)
         log.info("  ✓ %s [sensor] readings=%s %sms", name, readings, elapsed)

@@ -6,6 +6,7 @@ import bcrypt
 from flask_login import UserMixin
 
 from core.database import (
+    update_user_sensor_alert,
     clear_password_reset_token,
     count_users,
     create_user,
@@ -43,6 +44,15 @@ class User(UserMixin):
         self.last_login_at = kwargs.get("last_login_at")
         self.allowed_offices = kwargs.get("allowed_offices", []) or []
         self.allowed_modules = kwargs.get("allowed_modules", []) or []
+        self.sensor_alert_enabled = bool(kwargs.get("sensor_alert_enabled", False))
+        self.sensor_temp_warning = kwargs.get("sensor_temp_warning") or 30
+        self.sensor_temp_critical = kwargs.get("sensor_temp_critical") or 35
+        self.sensor_hum_warning_high = kwargs.get("sensor_hum_warning_high") or 70
+        self.sensor_hum_critical_high = kwargs.get("sensor_hum_critical_high") or 80
+        self.sensor_hum_warning_low = kwargs.get("sensor_hum_warning_low") or 20
+        self.sensor_alert_cooldown_minutes = kwargs.get("sensor_alert_cooldown_minutes") or 30
+        self.sensor_alert_start_hour = kwargs.get("sensor_alert_start_hour") or 0
+        self.sensor_alert_end_hour = kwargs.get("sensor_alert_end_hour") or 24
 
     @property
     def is_active(self):
@@ -164,6 +174,30 @@ class User(UserMixin):
         if ok:
             self.allowed_offices = list(allowed_offices or [])
             self.allowed_modules = list(allowed_modules or [])
+        return ok
+
+    def set_sensor_alert(self, enabled=False, temp_warning=30, temp_critical=35,
+                         hum_warning_high=70, hum_critical_high=80, hum_warning_low=20,
+                         cooldown_minutes=30, start_hour=0, end_hour=24) -> bool:
+        from core.database import update_user_sensor_alert
+        ok = update_user_sensor_alert(
+            int(self.id), enabled=enabled,
+            temp_warning=temp_warning, temp_critical=temp_critical,
+            hum_warning_high=hum_warning_high, hum_critical_high=hum_critical_high,
+            hum_warning_low=hum_warning_low,
+            cooldown_minutes=cooldown_minutes,
+            start_hour=start_hour, end_hour=end_hour,
+        )
+        if ok:
+            self.sensor_alert_enabled = bool(enabled)
+            self.sensor_temp_warning = temp_warning
+            self.sensor_temp_critical = temp_critical
+            self.sensor_hum_warning_high = hum_warning_high
+            self.sensor_hum_critical_high = hum_critical_high
+            self.sensor_hum_warning_low = hum_warning_low
+            self.sensor_alert_cooldown_minutes = cooldown_minutes
+            self.sensor_alert_start_hour = start_hour
+            self.sensor_alert_end_hour = end_hour
         return ok
 
     def can_access_module(self, module_name: str) -> bool:

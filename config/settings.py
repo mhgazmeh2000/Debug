@@ -7,6 +7,9 @@
 import json
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # ─── فایل‌ها و مسیرها ───────────────────────────────────────────
 PRINTERS_FILE        = "printers.json"
 DB_PATH              = "logs.db.active"
@@ -69,8 +72,15 @@ MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
 MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "1") == "1"
 MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+# ─── SMTP OAuth 2.0 (Gmail XOAUTH2) ──────────────────────────
+# فعال‌سازی: MAIL_USE_OAUTH=1 تا به جای App Password از OAuth 2.0 استفاده شود
+MAIL_USE_OAUTH = os.getenv("MAIL_USE_OAUTH", "0") == "1"
+MAIL_OAUTH_CLIENT_ID = os.getenv("MAIL_OAUTH_CLIENT_ID", "")
+MAIL_OAUTH_CLIENT_SECRET = os.getenv("MAIL_OAUTH_CLIENT_SECRET", "")
+MAIL_OAUTH_REFRESH_TOKEN = os.getenv("MAIL_OAUTH_REFRESH_TOKEN", "")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
 RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
 

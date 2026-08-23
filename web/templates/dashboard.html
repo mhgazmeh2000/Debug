@@ -3,6 +3,21 @@
 {% block title %}Multi Printer Monitoring{% endblock %}
 
 {% block content %}
+<!-- consume flash messages so they don't leak to login page -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <script>
+  (function(){
+    {% for category, message in messages %}
+    (function(){
+      var t=document.getElementById('toast');
+      if(t){t.textContent={{ message|tojson }};t.className='show {{ category }}';setTimeout(function(){t.className=''},4000);}
+    })();
+    {% endfor %}
+  })();
+  </script>
+  {% endif %}
+{% endwith %}
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="logo">TOSHIBA<span> MONITOR</span> <span class="v2-badge">v2</span></div>

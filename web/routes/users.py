@@ -185,6 +185,35 @@ def api_user_add():
     return jsonify({"status": "ok", "user": payload})
 
 
+@bp.route("/api/users/<int:user_id>/reset-password", methods=["POST"])
+@users_access_required
+def api_user_reset_password(user_id):
+    """ارسال ایمیل بازنشانی رمز عبور برای یک کاربر مشخص."""
+    target = User.get(user_id)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+
+    token = generate_reset_token(target.id, target.email)
+    token_hash = hash_token(token)
+    expires_at = (datetime.now() + timedelta(hours=1)).isoformat()
+    target.set_reset_token(token_hash, expires_at)
+    reset_link = url_for("auth.reset_password", token=token, _external=True)
+    text_body = (
+        f"برای بازنشانی رمز عبور روی لینک زیر کلیک کنید:\n{reset_link}\n\n"
+        "این لینک فقط یک‌بار و تا ۱ ساعت معتبر است."
+    )
+    html_body = (
+        f"<p>برای بازنشانی رمز عبور روی لینک زیر کلیک کنید:</p>"
+        f"<p><a href='{reset_link}'>{reset_link}</a></p>"
+        f"<p>این لینک فقط یک‌بار و تا ۱ ساعت معتبر است.</p>"
+    )
+    email_sent = send_email("بازنشانی رمز عبور", target.email, text_body, html_body)
+    _audit_user_action(SecurityEvent.PASSWORD_RESET_REQUESTED, target, {
+        "email_sent": email_sent,
+    })
+    return jsonify({"status": "ok", "email_sent": email_sent})
+
+
 @bp.route("/api/users/<int:user_id>/role", methods=["POST"])
 @users_access_required
 def api_user_role(user_id):
@@ -199,12 +228,12 @@ def api_user_role(user_id):
     if int(target.id) == int(current_user.id):
         return jsonify({"error": "نمی‌توانید نقش کاربری خودتان را تغییر دهید"}), 403
 
+    old_role = target.role
     if target.role == "admin" and role != "admin":
         admins = [u for u in User.all() if u and u.role == "admin"]
         if len(admins) <= 1:
             return jsonify({"error": "حداقل یک admin باید باقی بماند"}), 400
 
-            old_role = target.role
     if target.set_role(role):
         if role == "admin":
             target.set_verified(True)
@@ -284,3 +313,93 @@ def api_delete_user(user_id):
         _audit_user_action(SecurityEvent.USER_DELETED, target, {"deleted_user_id": user_id})
         return jsonify({"status": "deleted", "user_id": user_id})
     return jsonify({"error": "unable to delete user"}), 500
+
+
+@bp.route("/api/users/<int:user_id>/sensor-alert", methods=["GET"])
+@users_access_required
+def api_user_sensor_alert_get(user_id):
+    """دریافت تنظیمات ایمیل هشدار سنسور برای یک کاربر."""
+    target = User.get(user_id)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    return jsonify({
+        "sensor_alert_enabled": target.sensor_alert_enabled,
+        "sensor_temp_warning": target.sensor_temp_warning,
+        "sensor_temp_critical": target.sensor_temp_critical,
+        "sensor_hum_warning_high": target.sensor_hum_warning_high,
+        "sensor_hum_critical_high": target.sensor_hum_critical_high,
+        "sensor_hum_warning_low": target.sensor_hum_warning_low,
+        "sensor_alert_cooldown_minutes": target.sensor_alert_cooldown_minutes,
+        "sensor_alert_start_hour": target.sensor_alert_start_hour,
+        "sensor_alert_end_hour": target.sensor_alert_end_hour,
+    })
+
+
+@bp.route("/api/users/<int:user_id>/sensor-alert", methods=["POST"])
+@users_access_required
+def api_user_sensor_alert_set(user_id):
+    """ذخیره تنظیمات ایمیل هشدار سنسور برای یک کاربر."""
+    target = User.get(user_id)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("sensor_alert_enabled", False))
+    temp_warning = float(data.get("sensor_temp_warning", 30))
+    temp_critical = float(data.get("sensor_temp_critical", 35))
+    hum_warning_high = float(data.get("sensor_hum_warning_high", 70))
+    hum_critical_high = float(data.get("sensor_hum_critical_high", 80))
+    hum_warning_low = float(data.get("sensor_hum_warning_low", 20))
+    cooldown_minutes = int(data.get("sensor_alert_cooldown_minutes", 30))
+    start_hour = int(data.get("sensor_alert_start_hour", 0))
+    end_hour = int(data.get("sensor_alert_end_hour", 24))
+
+    # Validate ranges
+    if not (0 <= start_hour <= 24 and 0 <= end_hour <= 24):
+        return jsonify({"error": "ساعت شروع/پایان باید بین 0 تا 24 باشد"}), 400
+    if cooldown_minutes < 0:
+        return jsonify({"error": "فاصله ارسال نمی‌تواند منفی باشد"}), 400
+
+    if target.set_sensor_alert(
+        enabled=enabled,
+        temp_warning=temp_warning,
+        temp_critical=temp_critical,
+        hum_warning_high=hum_warning_high,
+        hum_critical_high=hum_critical_high,
+        hum_warning_low=hum_warning_low,
+        cooldown_minutes=cooldown_minutes,
+        start_hour=start_hour,
+        end_hour=end_hour,
+    ):
+        _audit_user_action(SecurityEvent.USER_ACCESS_CHANGED, target, {
+            "sensor_alert_enabled": enabled,
+        })
+        return jsonify({"status": "ok", "user": _serialize_user(target)})
+    return jsonify({"error": "unable to update sensor alert settings"}), 500
+
+@bp.route("/api/sensor-alert", methods=["GET"])
+@users_access_required
+def api_sensor_alert_get():
+    from core.sensor_alert import load_config
+    return jsonify(load_config())
+
+
+@bp.route("/api/sensor-alert", methods=["POST"])
+@users_access_required
+def api_sensor_alert_set():
+    from core.sensor_alert import save_config, load_config
+    data = request.get_json(silent=True) or {}
+    config = load_config()
+    config["enabled"] = bool(data.get("enabled", config.get("enabled", False)))
+    config["recipient_emails"] = data.get("recipient_emails", config.get("recipient_emails", []))
+    config["user_ids"] = [int(x) for x in (data.get("user_ids", config.get("user_ids", [])))]
+    config["temp_warning"] = float(data.get("temp_warning", config.get("temp_warning", 30)))
+    config["temp_critical"] = float(data.get("temp_critical", config.get("temp_critical", 35)))
+    config["hum_warning_high"] = float(data.get("hum_warning_high", config.get("hum_warning_high", 70)))
+    config["hum_critical_high"] = float(data.get("hum_critical_high", config.get("hum_critical_high", 80)))
+    config["hum_warning_low"] = float(data.get("hum_warning_low", config.get("hum_warning_low", 20)))
+    config["cooldown_minutes"] = int(data.get("cooldown_minutes", config.get("cooldown_minutes", 30)))
+    config["start_hour"] = int(data.get("start_hour", config.get("start_hour", 0)))
+    config["end_hour"] = int(data.get("end_hour", config.get("end_hour", 24)))
+    save_config(config)
+    return jsonify({"status": "ok", "config": config})
