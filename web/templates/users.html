@@ -14,6 +14,7 @@
       <button class="btn btn-green" type="button" onclick="openUserAddModal()">➕ افزودن کاربر</button>
       <button class="btn btn-cyan" type="button" onclick="loadUsers()">↻ بارگذاری کاربران</button>
       <button class="btn btn-yellow" type="button" onclick="openGlobalSensorAlertModal()">🌡️ تنظیمات هشدار سنسور</button>
+      <button class="btn btn-purple" type="button" onclick="openSystemSettingsModal()">⚙️ تطغینات سیستم</button>
       <a class="btn btn-cyan" href="{{ url_for('dashboard.index') }}">← بازگشت به داشبورد</a>
     </div>
   </header>
@@ -239,6 +240,49 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- System Settings Modal -->
+<div class="modal-overlay" id="system-settings-modal" style="display:none" onclick="if (event.target === this) closeSystemSettingsModal()">
+  <div class="modal-content" style="max-width:600px">
+    <h2 style="margin:0 0 16px;color:#f59e0b">⚙️ تنظیمات سیستم</h2>
+    <p style="color:#94a3b8;font-size:13px;margin:0 0 16px">اطلاعات Google OAuth و SMTP برای ارسال ایمیل و ورود به Google.</p>
+    <fieldset style="border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:16px">
+      <legend style="color:#60a5fa;font-weight:600;padding:0 8px">Google OAuth</legend>
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">Client ID</label>
+      <input type="text" id="ss-google-client-id" class="form-input" style="width:100%;margin-bottom:10px;font-size:12px">
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">Client Secret</label>
+      <input type="password" id="ss-google-client-secret" class="form-input" style="width:100%;font-size:12px">
+    </fieldset>
+    <fieldset style="border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:16px">
+      <legend style="color:#60a5fa;font-weight:600;padding:0 8px">SMTP</legend>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px">
+        <div><label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">SMTP Server</label>
+        <input type="text" id="ss-mail-server" class="form-input" style="width:100%;font-size:12px"></div>
+        <div><label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">Port</label>
+        <input type="number" id="ss-mail-port" class="form-input" style="width:100%;font-size:12px"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;color:#94a3b8;font-size:12px;margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="ss-mail-use-tls" checked> استفاده از TLS
+      </label>
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">نام کاربری (ایمیل)</label>
+      <input type="email" id="ss-mail-username" class="form-input" style="width:100%;margin-bottom:10px;font-size:12px">
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">رمز عبور / App Password</label>
+      <input type="password" id="ss-mail-password" class="form-input" style="width:100%;font-size:12px">
+    </fieldset>
+    <fieldset style="border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:16px">
+      <legend style="color:#60a5fa;font-weight:600;padding:0 8px">reCAPTCHA (اختیاری)</legend>
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">Site Key</label>
+      <input type="text" id="ss-recaptcha-site" class="form-input" style="width:100%;margin-bottom:10px;font-size:12px">
+      <label style="display:block;color:#94a3b8;font-size:12px;margin-bottom:4px">Secret Key</label>
+      <input type="password" id="ss-recaptcha-secret" class="form-input" style="width:100%;font-size:12px">
+    </fieldset>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-green" onclick="saveSystemSettings()">💾 ذخیره تنظیمات</button>
+      <button class="btn btn-blue" onclick="testSystemEmail()">✉️ تست ایمیل</button>
+      <button class="btn btn-gray" onclick="closeSystemSettingsModal()">انصراف</button>
+    </div>
+  </div>
+</div>
 
 <script>
 window.currentUserId = {{ current_user.id | default('null') | tojson }};
@@ -823,6 +867,71 @@ async function saveGlobalSensorAlert() {
   finally { setButtonLoading(btn, false); }
 }
 document.getElementById('gsa-enabled')?.addEventListener('change', updateGsaFieldsState);
+
+async function openSystemSettingsModal() {
+  document.getElementById("system-settings-modal").style.display = "flex";
+  try {
+    const r = await apiFetch("/api/system-settings");
+    const d = await r.json();
+    if (d.settings) {
+      document.getElementById("ss-google-client-id").value = d.settings.GOOGLE_CLIENT_ID || "";
+      document.getElementById("ss-google-client-secret").value = d.settings.GOOGLE_CLIENT_SECRET || "";
+      document.getElementById("ss-mail-server").value = d.settings.MAIL_SERVER || "";
+      document.getElementById("ss-mail-port").value = d.settings.MAIL_PORT || 587;
+      document.getElementById("ss-mail-use-tls").checked = d.settings.MAIL_USE_TLS !== false && d.settings.MAIL_USE_TLS !== "false";
+      document.getElementById("ss-mail-username").value = d.settings.MAIL_USERNAME || "";
+      document.getElementById("ss-mail-password").value = d.settings.MAIL_PASSWORD || "";
+      document.getElementById("ss-recaptcha-site").value = d.settings.RECAPTCHA_SITE_KEY || "";
+      document.getElementById("ss-recaptcha-secret").value = d.settings.RECAPTCHA_SECRET_KEY || "";
+    }
+  } catch(e) { showToast("خطا در بارگذاری تنظیمات: " + e.message, "error"); }
+}
+
+function closeSystemSettingsModal() {
+  document.getElementById("system-settings-modal").style.display = "none";
+}
+
+async function saveSystemSettings() {
+  const data = {
+    GOOGLE_CLIENT_ID: document.getElementById("ss-google-client-id").value,
+    GOOGLE_CLIENT_SECRET: document.getElementById("ss-google-client-secret").value,
+    MAIL_SERVER: document.getElementById("ss-mail-server").value,
+    MAIL_PORT: parseInt(document.getElementById("ss-mail-port").value) || 587,
+    MAIL_USE_TLS: document.getElementById("ss-mail-use-tls").checked,
+    MAIL_USERNAME: document.getElementById("ss-mail-username").value,
+    MAIL_PASSWORD: document.getElementById("ss-mail-password").value,
+    RECAPTCHA_SITE_KEY: document.getElementById("ss-recaptcha-site").value,
+    RECAPTCHA_SECRET_KEY: document.getElementById("ss-recaptcha-secret").value
+  };
+  try {
+    const r = await apiFetch("/api/system-settings", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const d = await r.json();
+    if (d.status === "ok") {
+      showToast(d.message || "تنظیمات ذخیره شد");
+      closeSystemSettingsModal();
+    } else {
+      showToast(d.error || "خطا در ذخیره", "error");
+    }
+  } catch(e) { showToast("خطا: " + e.message, "error"); }
+}
+
+async function testSystemEmail() {
+  const toEmail = document.getElementById("ss-mail-username").value;
+  if (!toEmail) { showToast("ایمیل خود را وارد کنید", "error"); return; }
+  try {
+    const r = await apiFetch("/api/system-settings/test-email", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({to_email: toEmail})
+    });
+    const d = await r.json();
+    if (d.status === "ok") { showToast(d.message); } else { showToast(d.error || "خطا", "error"); }
+  } catch(e) { showToast("خطا: " + e.message, "error"); }
+}
 
 </script>
 {% endblock %}

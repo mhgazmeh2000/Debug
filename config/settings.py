@@ -44,6 +44,28 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 _INSECURE_DEFAULT_KEY = "change-this-secret-key-in-production"
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 
+# ─── Load system_config.json overrides ──────────────────────
+# This file is written by the admin panel and takes precedence over env vars.
+_SYSTEM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'system_config.json')
+try:
+    if os.path.exists(_SYSTEM_CONFIG_FILE):
+        with open(_SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as _f:
+            _sc = json.load(_f) or {}
+        # Helper to get value: system_config > env var > default
+        def _cfg(key, default=''):
+            if key in _sc and _sc[key] not in (None, ''):
+                return _sc[key]
+            return os.getenv(key, default)
+    else:
+        _sc = {}
+        def _cfg(key, default=''):
+            return os.getenv(key, default)
+except Exception:
+    _sc = {}
+    def _cfg(key, default=''):
+        return os.getenv(key, default)
+
+
 if not SECRET_KEY:
     if ENVIRONMENT == "production":
         raise RuntimeError(
@@ -67,22 +89,22 @@ elif SECRET_KEY == _INSECURE_DEFAULT_KEY and ENVIRONMENT == "production":
         "   Generate a new one with: python -c \"import secrets; print(secrets.token_hex(32))\""
     )
 
-MAIL_SERVER = os.getenv("MAIL_SERVER", "")
-MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
-MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "1") == "1"
-MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+MAIL_SERVER = _cfg("MAIL_SERVER", "")
+MAIL_PORT = int(_cfg("MAIL_PORT", 587))
+MAIL_USE_TLS = str(_cfg("MAIL_USE_TLS", "1")) in ("1", "true", "True", True)
+MAIL_USERNAME = _cfg("MAIL_USERNAME", "")
+MAIL_PASSWORD = _cfg("MAIL_PASSWORD", "")
 # ─── SMTP OAuth 2.0 (Gmail XOAUTH2) ──────────────────────────
 # فعال‌سازی: MAIL_USE_OAUTH=1 تا به جای App Password از OAuth 2.0 استفاده شود
-MAIL_USE_OAUTH = os.getenv("MAIL_USE_OAUTH", "0") == "1"
-MAIL_OAUTH_CLIENT_ID = os.getenv("MAIL_OAUTH_CLIENT_ID", "")
-MAIL_OAUTH_CLIENT_SECRET = os.getenv("MAIL_OAUTH_CLIENT_SECRET", "")
-MAIL_OAUTH_REFRESH_TOKEN = os.getenv("MAIL_OAUTH_REFRESH_TOKEN", "")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
-RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
-RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
+MAIL_USE_OAUTH = str(_cfg("MAIL_USE_OAUTH", "0")) in ("1", "true", "True", True)
+MAIL_OAUTH_CLIENT_ID = _cfg("MAIL_OAUTH_CLIENT_ID", "")
+MAIL_OAUTH_CLIENT_SECRET = _cfg("MAIL_OAUTH_CLIENT_SECRET", "")
+MAIL_OAUTH_REFRESH_TOKEN = _cfg("MAIL_OAUTH_REFRESH_TOKEN", "")
+GOOGLE_CLIENT_ID = _cfg("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = _cfg("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = _cfg("GOOGLE_REDIRECT_URI", "")
+RECAPTCHA_SITE_KEY = _cfg("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = _cfg("RECAPTCHA_SECRET_KEY", "")
 
 # ─── CORS ───────────────────────────────────────────────────────
 # لیست origin هایی که اجازه دسترسی به API دارند (با کاما جدا کنید).

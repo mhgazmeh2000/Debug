@@ -67,3 +67,4 @@ sensor_alert_config.json
 debug_js.txt
 .freebuffpreview-*.log
 .freebuffpreview-*.log.err
+system_config.json

@@ -326,6 +326,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .btn-orange{background:rgba(255,112,67,.08);border-color:rgba(255,112,67,.3);color:var(--orange)}
 .btn-orange:hover{background:rgba(255,112,67,.18);border-color:var(--orange)}
 .btn-yellow{background:rgba(255,215,64,.08);border-color:rgba(255,215,64,.3);color:var(--yellow)}
+.btn-purple { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; }
+.btn-purple:hover { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
 .btn-yellow:hover{background:rgba(255,215,64,.18);border-color:var(--yellow)}
 .btn-sm{padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:9px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid var(--border);letter-spacing:.3px;white-space:nowrap}
 .btn-sm:hover{border-color:var(--cyan);background:rgba(0,212,255,.08);color:var(--cyan)}

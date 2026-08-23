@@ -1,3 +1,4 @@
+import os
 import logging
 import secrets
 import re
@@ -403,3 +404,127 @@ def api_sensor_alert_set():
     config["end_hour"] = int(data.get("end_hour", config.get("end_hour", 24)))
     save_config(config)
     return jsonify({"status": "ok", "config": config})
+
+# ─── System Settings (Google, SMTP) ──────────────────────────
+_SYSTEM_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'system_config.json')
+
+# Fields that can be edited from the admin panel
+_SYSTEM_FIELDS = [
+    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
+    'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USE_TLS',
+    'MAIL_USERNAME', 'MAIL_PASSWORD',
+    'RECAPTCHA_SITE_KEY', 'RECAPTCHA_SECRET_KEY'
+]
+
+def _load_system_config():
+    import json
+    try:
+        if os.path.exists(_SYSTEM_CONFIG_FILE):
+            with open(_SYSTEM_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+def _save_system_config(cfg):
+    import json
+    with open(_SYSTEM_CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+@bp.route("/api/system-settings", methods=["GET"])
+@users_access_required
+def api_system_settings_get():
+    cfg = _load_system_config()
+    # Return only the fields we allow editing (mask secrets partially)
+    result = {}
+    for key in _SYSTEM_FIELDS:
+        val = cfg.get(key, '')
+        if key in ('GOOGLE_CLIENT_SECRET', 'MAIL_PASSWORD', 'RECAPTCHA_SECRET_KEY') and val:
+            # Mask secret: show first 4 + last 4 chars
+            if len(val) > 8:
+                result[key] = val[:4] + '•' * (len(val) - 8) + val[-4:]
+            else:
+                result[key] = '•' * len(val)
+        else:
+            result[key] = val
+    return jsonify({"status": "ok", "settings": result, "fields": _SYSTEM_FIELDS})
+
+
+@bp.route("/api/system-settings", methods=["POST"])
+@users_access_required
+def api_system_settings_set():
+    import json
+    from flask import current_app
+    data = request.get_json(silent=True) or {}
+    cfg = _load_system_config()
+
+    # Update only provided fields (secrets that are masked get special handling)
+    for key in _SYSTEM_FIELDS:
+        if key in data:
+            val = data[key]
+            # If value contains masking chars, it means user didn't change it
+            if key in ('GOOGLE_CLIENT_SECRET', 'MAIL_PASSWORD', 'RECAPTCHA_SECRET_KEY'):
+                if val and '•' in val:
+                    continue  # Keep old value
+            if key == 'MAIL_PORT':
+                try:
+                    val = int(val)
+                except (ValueError, TypeError):
+                    val = 587
+            if key == 'MAIL_USE_TLS':
+                val = bool(val) if not isinstance(val, bool) else val
+            cfg[key] = val
+
+    _save_system_config(cfg)
+
+    # Audit
+    try:
+        _audit_user_action(
+            current_user.id,
+            "system_settings_changed",
+            {"changed_keys": [k for k in data.keys() if k in _SYSTEM_FIELDS]}
+        )
+    except Exception:
+        pass
+
+    # Reload settings in the running app
+    try:
+        from config import settings
+        for key in _SYSTEM_FIELDS:
+            if hasattr(settings, key) and key in cfg:
+                setattr(settings, key, cfg[key])
+    except Exception:
+        pass
+
+    return jsonify({"status": "ok", "message": "تنظیمات با موفقیت ذخیره شد. نیاز به ریستارت سرور برای اعمال کامل تغییرات است."})
+
+
+@bp.route("/api/system-settings/test-email", methods=["POST"])
+@users_access_required
+def api_system_settings_test_email():
+    """Send a test email to verify SMTP settings."""
+    from config import settings
+    import smtplib
+    from email.mime.text import MIMEText
+
+    data = request.get_json(silent=True) or {}
+    to_email = data.get("to_email", settings.MAIL_USERNAME)
+
+    if not settings.MAIL_SERVER or not settings.MAIL_USERNAME:
+        return jsonify({"error": "SMTP server or username not configured"}), 400
+
+    try:
+        msg = MIMEText("این یک ایمیل تست از سیستم مانیتورینگ پرینتر است.", "plain", "utf-8")
+        msg["Subject"] = "تست ایمیل - مانیتورینگ پرینتر"
+        msg["From"] = settings.MAIL_USERNAME
+        msg["To"] = to_email
+
+        with smtplib.SMTP(settings.MAIL_SERVER, settings.MAIL_PORT) as server:
+            server.starttls()
+            server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
+            server.send_message(msg)
+
+        return jsonify({"status": "ok", "message": f"ایمیل تست به {to_email} ارسال شد."})
+    except Exception as e:
+        return jsonify({"error": f"خطا در ارسال ایمیل: {str(e)}"}), 500
