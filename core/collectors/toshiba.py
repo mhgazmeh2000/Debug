@@ -14,6 +14,35 @@ from core.collectors.base import si, ss, _counters_event, validate_counter_consi
 from core import store
 from core.database import add_event
 
+
+# ─── نام دقیق کارتریج‌های Toshiba (fallback) ───
+_TOSHIBA_CARTRIDGE_NAMES = {
+    't-6250e': 'Toshiba T-6250E Black',
+    't-6250c': 'Toshiba T-6250C Cyan',
+    't-6250m': 'Toshiba T-6250M Magenta',
+    't-6250y': 'Toshiba T-6250Y Yellow',
+    't-4590e': 'Toshiba T-4590E Black',
+    't-4590c': 'Toshiba T-4590C Cyan',
+    't-4590m': 'Toshiba T-4590M Magenta',
+    't-4590y': 'Toshiba T-4590Y Yellow',
+    't-3590e': 'Toshiba T-3590E Black',
+    't-3590c': 'Toshiba T-3590C Cyan',
+    't-3590m': 'Toshiba T-3590M Magenta',
+    't-3590y': 'Toshiba T-3590Y Yellow',
+    't-2590e': 'Toshiba T-2590E Black',
+    'dr-6250': 'Toshiba DR-6250 Drum',
+    'dr-4590': 'Toshiba DR-4590 Drum',
+    'dr-3590': 'Toshiba DR-3590 Drum',
+}
+
+def _toshiba_resolve_cartridge_name(oid_name: str, toner_key: str) -> str:
+    if oid_name:
+        norm = oid_name.lower().replace(' ', '')
+        for pattern, display in _TOSHIBA_CARTRIDGE_NAMES.items():
+            if pattern in norm:
+                return display
+    return oid_name or ('Black Toner' if toner_key == 'black' else f'{toner_key.title()} Toner')
+
 log = logging.getLogger("PrinterMonitor")
 
 NE_LEVEL = {5: 25, 6: 20, 7: 10, 8: 0, 9: 5}

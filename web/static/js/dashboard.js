@@ -601,6 +601,27 @@ function closeTonerResetModal() {
   _tonerResetTargetIp = null;
 }
 
+async function quickReplaceCartridge(ip, color) {
+  if (!confirm('آیا کارتریج ' + color + ' تعویض شده است؟ سطح به 100% تنظیم می‌شود.')) return;
+  try {
+    const r = await apiFetch(API + '/api/printer/' + encodeURIComponent(ip) + '/toner_reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color: color, new_level: 100 })
+    });
+    const j = await r.json();
+    if (r.ok) {
+      toast('کارتریج ' + color + ' تعویض شد — سطح به 100% تنظیم شد', 's');
+      fetchData();
+    } else {
+      toast(j.error || 'خطا در به‌روزرسانی', 'e');
+    }
+  } catch(e) {
+    console.error(e);
+    toast('خطا در اتصال', 'e');
+  }
+}
+
 async function submitTonerReset() {
   const modal = document.getElementById('modal-toner-reset');
   if (!modal) return;
@@ -1119,6 +1140,7 @@ function buildPrinterDetail(p) {
           ` : ''}
           ${yieldInfoHtml}
           ${unsupportedHint}
+          ${canManage() && col !== 'drum' ? `<div style="margin-top:8px"><button class="btn btn-green" onclick="quickReplaceCartridge('${p.ip}','${col}')" style="font-size:10px;padding:3px 8px">🔄 کارتریج تعویض شد</button></div>` : ''}
         </article>`;
     }).join('');
 

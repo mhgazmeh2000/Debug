@@ -8,6 +8,42 @@ from core import store
 log = logging.getLogger("PrinterMonitor")
 
 
+# ─── نام دقیق کارتریج‌های HP (fallback وقتی SNMP نام نمی‌دهد) ───
+_HP_CARTRIDGE_NAMES = {
+    "ce505a": "HP 85A Black (CE505A)",
+    "cc388a": "HP 12A Black (CC388A)",
+    "cf280a": "HP 80A Black (CF280A)",
+    "cf280x": "HP 80X Black (CF280X)",
+    "cf283a": "HP 83A Black (CF283A)",
+    "cf283x": "HP 83X Black (CF283X)",
+    "cf287a": "HP 87A Black (CF287A)",
+    "cf287x": "HP 87X Black (CF287X)",
+    "cf287y": "HP 87Y Black (CF287Y)",
+    "cf289a": "HP 89A Black (CF289A)",
+    "cf289x": "HP 89X Black (CF289X)",
+    "cf289y": "HP 89Y Black (CF289Y)",
+    "cf281a": "HP 81A Black (CF281A)",
+    "cf281x": "HP 81X Black (CF281X)",
+    "cf410a": "HP 410A Black (CF410A)",
+    "cf410x": "HP 410X Black (CF410X)",
+    "cf411a": "HP 410A Cyan (CF411A)",
+    "cf411x": "HP 410X Cyan (CF411X)",
+    "cf412a": "HP 410A Yellow (CF412A)",
+    "cf412x": "HP 410X Yellow (CF412X)",
+    "cf413a": "HP 410A Magenta (CF413A)",
+    "cf413x": "HP 410X Magenta (CF413X)",
+    "w9008mc": "HP 81A Black (W9008MC)",
+}
+
+def _hp_resolve_cartridge_name(oid_name: str, toner_key: str) -> str:
+    if oid_name:
+        norm = oid_name.lower().replace(" ", "").replace("-", "")
+        for pattern, display in _HP_CARTRIDGE_NAMES.items():
+            if pattern in norm:
+                return display
+    return oid_name or ("Black Toner" if toner_key == "black" else f"{toner_key.title()} Toner")
+
+
 def _scrape_hp_toners(ip: str, timeout: float = 4.0):
     """Fallback وب برای سطح تونر HP وقتی SNMP عدد نمی‌دهد.
 
@@ -213,8 +249,10 @@ def collect_hp(ip: str, name: str, community: str, start: float) -> dict:
             t_rem  = si(g(f"1.3.6.1.2.1.43.11.1.1.9.1.{idx}"), -2)
             if t_max == -1 and t_rem == -2:
                 break
-            if not t_name:
+            if not t_name or not any(c.isalpha() for c in t_name):
                 t_name = "Black Toner" if idx == 1 else f"Toner {idx}"
+            else:
+                t_name = _hp_resolve_cartridge_name(t_name, "black" if idx == 1 else f"toner_{idx}")
             toner_key = _hp_toner_key(t_name) or ("black" if idx == 1 else f"toner_{idx}")
             if toner_key in ("cyan", "magenta", "yellow"):
                 has_color_toner = True

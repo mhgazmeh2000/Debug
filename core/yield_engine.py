@@ -335,6 +335,11 @@ def ensure_yield_tables() -> None:
             "ALTER TABLE cartridge_state ADD COLUMN zero_reached_timestamp TEXT",
             "ALTER TABLE cartridge_state ADD COLUMN pages_after_zero INTEGER DEFAULT 0",
             "ALTER TABLE cartridge_state ADD COLUMN cycle_status TEXT DEFAULT 'active'",
+            "ALTER TABLE cartridge_state ADD COLUMN cartridge_serial TEXT",
+            "ALTER TABLE cartridge_state ADD COLUMN last_cartridge_name TEXT",
+            "ALTER TABLE cartridge_state ADD COLUMN replacement_detected_at TEXT",
+            "ALTER TABLE toner_snapshots_v2 ADD COLUMN cartridge_serial TEXT",
+            "ALTER TABLE cartridge_state ADD COLUMN cartridge_name_override TEXT",
         ):
             try:
                 conn.execute(column_sql)
@@ -357,6 +362,8 @@ def _row_to_state(row) -> Optional[dict]:
         "cycle_start_counter", "cycle_start_level", "cycle_start_timestamp",
         "zero_reached_counter", "zero_reached_timestamp", "pages_after_zero", "cycle_status",
         "force_estimate", "updated_at",
+        "cartridge_serial", "last_cartridge_name", "replacement_detected_at",
+        "cartridge_name_override",
     ]
     return dict(zip(cols, row))
 
@@ -371,7 +378,9 @@ def _load_state(conn, ip: str, color: str) -> Optional[dict]:
                pending_refill_level, pending_refill_counter, pending_refill_timestamp,
                cycle_start_counter, cycle_start_level, cycle_start_timestamp,
                zero_reached_counter, zero_reached_timestamp, pages_after_zero, cycle_status,
-               force_estimate, updated_at
+               force_estimate, updated_at,
+               cartridge_serial, last_cartridge_name, replacement_detected_at,
+               cartridge_name_override
         FROM cartridge_state
         WHERE printer_ip = ? AND color = ?
         """,
@@ -417,8 +426,10 @@ def _upsert_state(conn, state: dict) -> None:
             pending_refill_level, pending_refill_counter, pending_refill_timestamp,
             cycle_start_counter, cycle_start_level, cycle_start_timestamp,
             zero_reached_counter, zero_reached_timestamp, pages_after_zero, cycle_status,
-            force_estimate, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            force_estimate, updated_at,
+            cartridge_serial, last_cartridge_name, replacement_detected_at,
+            cartridge_name_override
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             state.get("printer_ip"), state.get("color"), state.get("printer_model"),
@@ -432,6 +443,8 @@ def _upsert_state(conn, state: dict) -> None:
             state.get("cycle_start_timestamp"), state.get("zero_reached_counter"), state.get("zero_reached_timestamp"),
             state.get("pages_after_zero", 0), state.get("cycle_status", "active"),
             state.get("force_estimate", 0), state.get("updated_at"),
+            state.get("cartridge_serial"), state.get("last_cartridge_name"), state.get("replacement_detected_at"),
+            state.get("cartridge_name_override"),
         ),
     )
 
@@ -439,19 +452,21 @@ def _upsert_state(conn, state: dict) -> None:
 def _record_snapshot(conn, ip: str, color: str, printer_model: str, cartridge_name: str,
                      cartridge_key: str, timestamp: str, counters: dict,
                      usage_counter: Optional[int], level: Optional[int], raw_level,
-                     source: str, valid: bool = True, reject_reason: str = None) -> None:
+                     source: str, valid: bool = True, reject_reason: str = None,
+                     cartridge_serial: str = None) -> None:
     conn.execute(
         """
         INSERT INTO toner_snapshots_v2 (
             printer_ip, color, printer_model, cartridge_name, cartridge_key, timestamp,
             print_total, full_color, black_white, usage_counter, toner_level, raw_level,
-            source, valid, reject_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            source, valid, reject_reason, cartridge_serial
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             ip, color, printer_model, cartridge_name, cartridge_key, timestamp,
             counters.get("total"), counters.get("full_color"), counters.get("black_white"),
             usage_counter, level, raw_level, source, 1 if valid else 0, reject_reason,
+            cartridge_serial,
         ),
     )
 
@@ -651,6 +666,10 @@ def _state_public_dict(state: dict, profile: Optional[dict] = None) -> dict:
         "pages_after_zero": _to_int(state.get("pages_after_zero"), 0),
         "cycle_status": state.get("cycle_status") or "active",
         "cartridge_key": state.get("cartridge_key"),
+        "cartridge_serial": state.get("cartridge_serial"),
+        "last_cartridge_name": state.get("last_cartridge_name"),
+        "replacement_detected_at": state.get("replacement_detected_at"),
+        "cartridge_name_override": state.get("cartridge_name_override"),
     }
     if profile:
         result["shared_profile"] = {
@@ -720,10 +739,81 @@ def _maybe_close_cycle(conn, state: dict, *, ip: str, color: str, printer_model:
     }
 
 
+
+def detect_cartridge_replacement(state: dict, new_level, new_cartridge_name: str,
+                                  usage_counter: int, cartridge_serial: str = None) -> bool:
+    """تشخیص تعویض کارتریج از روی الگوی رفتاری (signature-based).
+
+    چون سریال کارتریج در MIB استاندارد SNMP وجود ندارد، از ترکیب چند سیگنال استفاده می‌کنیم:
+
+    سیگنال‌ها:
+    1. تغییر نام کارتریج (قوی‌ترین سیگنال)
+    2. سطح قبلی پایین + جهش به بالا
+    3. صفحات کم از آخرین anchor
+    4. سطح قبلی بسیار پایین (تقریباً تمام)
+
+    آستانه: score >= 5 → تعویض واقعی
+    """
+    old_level = state.get("last_valid_level")
+    old_name = state.get("last_cartridge_name") or state.get("cartridge_name")
+    old_serial = state.get("cartridge_serial")
+    old_counter = state.get("last_counter") or state.get("anchor_counter")
+
+    if new_level is None or old_level is None:
+        return False
+
+    jump = new_level - old_level
+    if jump < REFILL_JUMP_PERCENT:
+        return False
+
+    score = 0
+
+    # سیگنال ۱: تغییر نام کارتریج (قوی‌ترین)
+    new_name_norm = _norm_text(new_cartridge_name)
+    old_name_norm = _norm_text(old_name) if old_name else ""
+    if new_name_norm and old_name_norm and new_name_norm != old_name_norm:
+        score += 5
+    elif new_name_norm and old_name_norm and new_name_norm == old_name_norm:
+        # نام ثابت = احتمالاً شارژ، نه تعویض
+        score -= 2
+
+    # سیگنال ۲: سطح قبلی پایین
+    if old_level <= 20:
+        score += 3
+    elif old_level <= 40:
+        score += 1
+
+    # سیگنال ۳: صفحات کم از آخرین anchor (کارتریج نو = صفحات چاپ نشده)
+    if old_counter is not None and usage_counter is not None:
+        pages_since_anchor = usage_counter - old_counter
+        if old_level <= 20 and pages_since_anchor < 50:
+            score += 2
+
+    # سیگنال ۴: سطح قبلی بسیار پایین (تقریباً تمام)
+    if old_level <= 5:
+        score += 2
+
+    # سیگنال ۵: سریال تغییر کرده (اگر موجود باشد)
+    if cartridge_serial and old_serial and cartridge_serial != old_serial:
+        score += 5
+
+    is_replacement = score >= 5
+
+    if is_replacement:
+        log.info(
+            "  [%s] تشخیص تعویض کارتریج: score=%d (old_level=%s, new_level=%s, old_name=%s, new_name=%s)",
+            state.get("printer_ip"), score, old_level, new_level,
+            old_name or "?", new_cartridge_name or "?"
+        )
+
+    return is_replacement
+
+
 def process_cartridge_snapshot(*, ip: str, color: str, printer_model: str, cartridge_name: str,
                                level, raw_level=None, counters: dict, device_type: str,
                                timestamp: str = None, source: str = "poll",
                                device_capacity_pages: int = None,
+                               cartridge_serial: str = None,
                                _ensure_tables: bool = True) -> dict:
     """پردازش یک کارتریج و برگرداندن metadata قابل نمایش در API/UI."""
     if _ensure_tables:
@@ -797,11 +887,20 @@ def process_cartridge_snapshot(*, ip: str, color: str, printer_model: str, cartr
         # ظرفیت مرجع (اعلامی دستگاه در اولویت، بعد کاتالوگ) — لنگر «اصولی» ظرفیت
         rated_capacity = device_capacity or catalog_capacity
 
+        # اگر نام override توسط کاربر تنظیم شده باشد، از آن استفاده کن
+        # (مثلاً Canon MF220 همیشه 'Cartridge 137' برمیگرداند حتی با کارتریج 737)
+        name_override = state.get("cartridge_name_override")
+        if name_override:
+            cartridge_name = name_override
+            cartridge_key = build_cartridge_key(printer_model, name_override, color)
+
         # metadata همیشه به‌روز شود، چون ممکن است نام کارتریج یا مدل در pollهای بعدی کامل‌تر شود.
         state.update({
             "printer_model": printer_model,
+            "last_cartridge_name": state.get("cartridge_name") or state.get("last_cartridge_name"),
             "cartridge_name": cartridge_name,
             "cartridge_key": cartridge_key,
+            "cartridge_serial": cartridge_serial or state.get("cartridge_serial"),
             "updated_at": now,
         })
 
@@ -853,6 +952,70 @@ def process_cartridge_snapshot(*, ip: str, color: str, printer_model: str, cartr
             })
 
         if level_i is None or usage_counter is None:
+            # ─── تشخیص تعویض مبتنی بر counter (برای پرینترهایی که سطح تونر گزارش نمی‌دهند) ───
+            if level_i is None and usage_counter is not None:
+                last_counter = _to_int(state.get("last_counter"))
+                if last_counter is not None and usage_counter > last_counter:
+                    pages_delta = usage_counter - last_counter
+                    cycle_status = state.get("cycle_status") or "active"
+                    # اگر سطح همیشه 0/None بوده و تعداد صفحات چاپ‌شده زیاد شده،
+                    # احتمال تعویض کارتریج وجود دارد (چون کارتریج جدید هم 0/None گزارش می‌دهد)
+                    if pages_delta >= 100 and cycle_status == "zero_plateau":
+                        # بررسی تغییر نام کارتریج (اگر نام تغییر کرده باشد = تعویض قطعی)
+                        name_changed = False
+                        old_name = state.get("last_cartridge_name") or state.get("cartridge_name")
+                        if old_name and cartridge_name and _norm_text(old_name) != _norm_text(cartridge_name):
+                            name_changed = True
+                        
+                        if name_changed:
+                            log.info(
+                                "  [%s/%s] 🔄 تشخیص تعویض (تغییر نام): %s → %s (counter: %d → %d)",
+                                ip, color, old_name, cartridge_name, last_counter, usage_counter)
+                            state.update({
+                                "current_level": None,
+                                "last_valid_level": None,
+                                "last_cartridge_name": state.get("cartridge_name"),
+                                "cartridge_name": cartridge_name,
+                                "last_counter": usage_counter,
+                                "anchor_counter": usage_counter,
+                                "anchor_level": None,
+                                "anchor_timestamp": timestamp,
+                                "cycle_start_counter": usage_counter,
+                                "cycle_start_level": None,
+                                "cycle_start_timestamp": timestamp,
+                                "cycle_status": "active",
+                                "yield_per_page": catalog_capacity or DEFAULT_YIELD_PER_PAGE,
+                                "yield_source": "catalog" if catalog_capacity else "default",
+                                "confidence": ((catalog_match or {}).get("confidence") or "medium") if catalog_capacity else "low",
+                                "sample_count": 0,
+                                "total_weight": 0.0,
+                                "last_refill_at": timestamp,
+                                "last_refill_counter": usage_counter,
+                                "replacement_detected_at": timestamp,
+                                "updated_at": now,
+                            })
+                            try:
+                                from core.database import add_event
+                                add_event(ip, "CARTRIDGE_REPLACED", {
+                                    "color": color,
+                                    "old_name": old_name,
+                                    "new_name": cartridge_name,
+                                    "counter": usage_counter,
+                                    "pages_since_last": pages_delta,
+                                    "detection_method": "name_change_with_zero_level",
+                                })
+                            except Exception:
+                                pass
+                            _record_snapshot(conn, ip, color, printer_model, cartridge_name, cartridge_key,
+                                             timestamp, counters, usage_counter, None, raw_level, source,
+                                             valid=False, cartridge_serial=cartridge_serial)
+                            _upsert_state(conn, state)
+                            return _state_public_dict(state, profile)
+                
+                # همیشه counter را به‌روز نگه دار (حتی اگر تشخیص ندادیم)
+                state["last_counter"] = usage_counter
+                state["updated_at"] = now
+            
             _record_snapshot(conn, ip, color, printer_model, cartridge_name, cartridge_key,
                              timestamp, counters, usage_counter, level_i, raw_level, source,
                              valid=False, reject_reason="missing_level_or_counter")
@@ -888,10 +1051,78 @@ def process_cartridge_snapshot(*, ip: str, color: str, printer_model: str, cartr
             _upsert_state(conn, state)
             return _state_public_dict(state, profile)
 
+        # ─── تعریف متغیرهای مشترک ───
         prev_level = _to_int(state.get("last_valid_level"))
         anchor_level = _to_int(state.get("anchor_level"))
         anchor_counter = _to_int(state.get("anchor_counter"))
+        cycle_status = state.get("cycle_status") or "active"
 
+        # ─── تشخیص تعویض در حالت zero_plateau (پرینترهایی که سطح 0 باقی می‌مانند) ───
+        # برای پرینترهایی مثل Canon MF220 که SNMP سطح 0 گزارش می‌دهند
+        # و هیچ‌وقت سطح تغییر نمی‌کند.
+        if level_i == 0 and cycle_status == "zero_plateau" and prev_level is not None and prev_level == 0:
+            last_counter_val = _to_int(state.get("last_counter"))
+            pages_since_anchor = usage_counter - (anchor_counter or usage_counter) if anchor_counter is not None else 0
+            
+            # تشخیص تغییر نام (قوی‌ترین سیگنال)
+            old_name_for_zp = state.get("last_cartridge_name") or state.get("cartridge_name")
+            name_changed = (old_name_for_zp and cartridge_name and 
+                          _norm_text(old_name_for_zp) != _norm_text(cartridge_name))
+            
+            if name_changed and pages_since_anchor >= 10:
+                log.info(
+                    "  [%s/%s] 🔄 تعویض تشخیص داده شد (zero_plateau + تغییر نام): %s → %s (counter: %d)",
+                    ip, color, old_name_for_zp, cartridge_name, usage_counter)
+                state.update({
+                    "current_level": 0,
+                    "last_valid_level": 0,
+                    "last_cartridge_name": state.get("cartridge_name"),
+                    "cartridge_name": cartridge_name,
+                    "last_counter": usage_counter,
+                    "anchor_counter": usage_counter,
+                    "anchor_level": 0,
+                    "anchor_timestamp": timestamp,
+                    "cycle_start_counter": usage_counter,
+                    "cycle_start_level": 0,
+                    "cycle_start_timestamp": timestamp,
+                    "zero_reached_counter": usage_counter,
+                    "zero_reached_timestamp": timestamp,
+                    "pages_after_zero": 0,
+                    "cycle_status": "active",
+                    "yield_per_page": catalog_capacity or DEFAULT_YIELD_PER_PAGE,
+                    "yield_source": "catalog" if catalog_capacity else "default",
+                    "confidence": ((catalog_match or {}).get("confidence") or "medium") if catalog_capacity else "low",
+                    "sample_count": 0,
+                    "total_weight": 0.0,
+                    "last_refill_at": timestamp,
+                    "last_refill_counter": usage_counter,
+                    "replacement_detected_at": timestamp,
+                    "updated_at": now,
+                })
+                try:
+                    from core.database import add_event
+                    add_event(ip, "CARTRIDGE_REPLACED", {
+                        "color": color,
+                        "old_name": old_name_for_zp,
+                        "new_name": cartridge_name,
+                        "counter": usage_counter,
+                        "pages_since_anchor": pages_since_anchor,
+                        "detection_method": "zero_plateau_name_change",
+                    })
+                except Exception:
+                    pass
+                _record_snapshot(conn, ip, color, printer_model, cartridge_name, cartridge_key,
+                                 timestamp, counters, usage_counter, level_i, raw_level, source,
+                                 valid=True, cartridge_serial=cartridge_serial)
+                _upsert_state(conn, state)
+                return _state_public_dict(state, profile)
+            
+            # حتی بدون تغییر نام، اگر صفحات زیاد شده و هیچ جایی counter را چک نکرده‌ایم
+            if last_counter_val is None and pages_since_anchor >= 50:
+                # اولین poll پس از راه‌اندازی مجدد — counter را تنظیم کن
+                state["last_counter"] = usage_counter
+                state["updated_at"] = now
+        
         # ─── دروازه‌ی ضد-نویز سطح (blip تک‌پالی) ─────────────────────────
         # ✅ داده‌ی واقعی (TOSHIBA 0.40/0.41): سطح پایدار ۱۰۰٪ + pollهای تنهای ۸٪.
         # هر blip بدون این دروازه: anchor به ۸ می‌نشست → بازگشت به ۱۰۰ «شارژ»
@@ -911,8 +1142,126 @@ def process_cartridge_snapshot(*, ip: str, color: str, printer_model: str, cartr
             _upsert_state(conn, state)
             return _state_public_dict(state, profile)
 
+        # ─── تأیید خودکار تعویض برای پرینترهای zero-plateau ───
+        # وقتی اسکرپر HTTP لحظه‌ای سطح بالا (مثلاً 100٪) دید ولی سطح SNMP
+        # همیشه 0 است (مثل Canon MF220)، آن لحظه خودش سیگنال تعویض کارتریج است.
+        pending_level = _to_int(state.get("pending_refill_level"))
+        pending_counter = _to_int(state.get("pending_refill_counter"))
+        if (pending_level is not None and pending_level >= 80
+                and level_i is not None and level_i < pending_level
+                and cycle_status in ("zero_plateau", "refill_pending")
+                and usage_counter is not None
+                and pending_counter is not None and usage_counter > pending_counter):
+            log.info(
+                "  [%s/%s] 🔄 تأیید خودکار تعویض (zero-plateau): اسکرپر %s%% دید → ریست به 100%% (counter: %d → %d)",
+                ip, color, pending_level, pending_counter, usage_counter)
+            try:
+                from core.database import add_event
+                add_event(ip, "CARTRIDGE_REPLACED", {
+                    "color": color,
+                    "old_level": prev_level,
+                    "new_level": 100,
+                    "old_name": state.get("last_cartridge_name") or state.get("cartridge_name"),
+                    "new_name": cartridge_name,
+                    "counter": usage_counter,
+                    "detection_method": "zero_plateau_scraper_spike",
+                    "scraper_saw_level": pending_level,
+                })
+            except Exception:
+                pass
+            state.update({
+                "current_level": 100,
+                "last_valid_level": 100,
+                "anchor_level": 100,
+                "anchor_counter": usage_counter,
+                "anchor_timestamp": timestamp,
+                "cycle_start_counter": usage_counter,
+                "cycle_start_level": 100,
+                "cycle_start_timestamp": timestamp,
+                "cycle_status": "active",
+                "yield_per_page": rated_capacity or DEFAULT_YIELD_PER_PAGE,
+                "yield_source": "catalog" if catalog_capacity else "default",
+                "confidence": ((catalog_match or {}).get("confidence") or "medium") if catalog_capacity else "low",
+                "sample_count": 0,
+                "total_weight": 0.0,
+                "cartridge_serial": cartridge_serial,
+                "last_refill_at": timestamp,
+                "last_refill_counter": usage_counter,
+                "pending_refill_level": None,
+                "pending_refill_counter": None,
+                "pending_refill_timestamp": None,
+                "zero_reached_counter": None,
+                "zero_reached_timestamp": None,
+                "pages_after_zero": 0,
+                "last_counter": usage_counter,
+                "updated_at": now,
+            })
+            _record_snapshot(conn, ip, color, printer_model, cartridge_name, cartridge_key,
+                             timestamp, counters, usage_counter, 100, raw_level, source,
+                             valid=True, cartridge_serial=cartridge_serial)
+            _upsert_state(conn, state)
+            return _state_public_dict(state, profile)
+
+        # ─── تشخیص تعویض کارتریج ─────────────────────────────
+        if prev_level is not None and level_i is not None and level_i - prev_level >= REFILL_JUMP_PERCENT:
+            is_replacement = detect_cartridge_replacement(
+                state, level_i, cartridge_name, usage_counter, cartridge_serial)
+
+            if is_replacement:
+                log.info(
+                    "  [%s/%s] 🔄 تعویض کارتریج تشخیص داده شد: %s%% → %s%% (name: %s)",
+                    ip, color, prev_level, level_i, cartridge_name)
+                # ثبت رویداد
+                try:
+                    from core.database import add_event
+                    add_event(ip, "CARTRIDGE_REPLACED", {
+                        "color": color,
+                        "old_level": prev_level,
+                        "new_level": level_i,
+                        "old_name": state.get("last_cartridge_name") or state.get("cartridge_name"),
+                        "new_name": cartridge_name,
+                        "old_serial": state.get("cartridge_serial"),
+                        "new_serial": cartridge_serial,
+                        "counter": usage_counter,
+                    })
+                except Exception:
+                    pass
+
+                # ریست state برای کارتریج جدید
+                state.update({
+                    "current_level": 100,
+                    "last_valid_level": 100,
+                    "anchor_level": 100,
+                    "anchor_counter": usage_counter,
+                    "anchor_timestamp": timestamp,
+                    "cycle_start_counter": usage_counter,
+                    "cycle_start_level": 100,
+                    "cycle_start_timestamp": timestamp,
+                    "cycle_status": "active",
+                    "yield_per_page": rated_capacity or DEFAULT_YIELD_PER_PAGE,
+                    "yield_source": "catalog" if catalog_capacity else "default",
+                    "confidence": ((catalog_match or {}).get("confidence") or "medium") if catalog_capacity else "low",
+                    "sample_count": 0,
+                    "total_weight": 0.0,
+                    "cartridge_serial": cartridge_serial,
+                    "last_refill_at": timestamp,
+                    "last_refill_counter": usage_counter,
+                    "pending_refill_level": None,
+                    "pending_refill_counter": None,
+                    "pending_refill_timestamp": None,
+                    "zero_reached_counter": None,
+                    "zero_reached_timestamp": None,
+                    "pages_after_zero": 0,
+                    "last_counter": usage_counter,
+                    "updated_at": now,
+                })
+                _record_snapshot(conn, ip, color, printer_model, cartridge_name, cartridge_key,
+                                 timestamp, counters, usage_counter, level_i, raw_level, source,
+                                 valid=True, cartridge_serial=cartridge_serial)
+                _upsert_state(conn, state)
+                return _state_public_dict(state, profile)
+
         # افزایش زیاد تونر: refill candidate و سپس confirm در poll بعدی.
-        if prev_level is not None and level_i - prev_level >= REFILL_JUMP_PERCENT:
             pending_level = _to_int(state.get("pending_refill_level"))
             pending_counter = _to_int(state.get("pending_refill_counter"))
             if pending_level is not None and level_i >= pending_level - 1 and usage_counter >= (pending_counter or usage_counter):
@@ -1119,6 +1468,7 @@ def process_printer_yield_snapshot(*, ip: str, printer_model: str, counters: dic
                 timestamp=timestamp,
                 source=source,
                 device_capacity_pages=device_capacity_pages,
+                cartridge_serial=toner.get("serial"),
                 _ensure_tables=False,
             )
         except Exception as exc:
@@ -1145,6 +1495,13 @@ def register_manual_refill(*, ip: str, color: str, printer_model: str, cartridge
 
     with db_connection(commit=True) as conn:
         state = _load_state(conn, ip, color) or {}
+
+        # اگر نام override توسط کاربر تنظیم شده، از آن استفاده کن
+        existing_override = state.get("cartridge_name_override")
+        if existing_override:
+            cartridge_name = existing_override
+            cartridge_key = build_cartridge_key(printer_model, existing_override, color)
+
         profile = _load_profile(conn, cartridge_key)
         inherited_yield = _to_int(state.get("yield_per_page"), DEFAULT_YIELD_PER_PAGE)
         inherited_source = state.get("yield_source") or "default"
@@ -1210,6 +1567,57 @@ def register_manual_refill(*, ip: str, color: str, printer_model: str, cartridge
                          "manual_reset", valid=usage_counter is not None,
                          reject_reason=None if usage_counter is not None else "missing_counter_manual_reset")
         _upsert_state(conn, state)
+
+        # ثبت رویداد CARTRIDGE_REPLACED (مستقیم با conn برای جلوگیری از database lock)
+        old_name_for_event = state.get("last_cartridge_name") or state.get("cartridge_name")
+        old_level_for_event = state.get("last_valid_level")
+        try:
+            printer_name_ev = None
+            try:
+                from core import store
+                with store.printers_lock:
+                    for p in store.PRINTERS:
+                        if p.get("ip") == ip:
+                            printer_name_ev = p.get("name")
+                            break
+            except Exception:
+                pass
+            conn.execute(
+                "INSERT INTO logs (printer_ip, printer_name, timestamp, type, message, pages, color, code, severity, paper_size, username, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (ip, printer_name_ev, _now(), "CARTRIDGE_REPLACED", "", None, color, None, "info", None, None,
+                 json.dumps({"color": color, "old_level": old_level_for_event, "new_level": level_i,
+                             "old_name": old_name_for_event, "new_name": cartridge_name,
+                             "counter": usage_counter, "detection_method": "manual_refill"}, ensure_ascii=False)),
+            )
+        except Exception:
+            log.exception("Failed to log CARTRIDGE_REPLACED event for %s", ip)
+
+        return _state_public_dict(state, profile)
+
+
+def set_cartridge_name_override(ip: str, color: str, override_name: str) -> dict:
+    """تنظیم نام دستی کارتریج برای پرینترهایی که SNMP نام اشتباه برمیگردانند.
+
+    Canon MF220 همیشه 'Cartridge 137' برمیگرداند حتی با کارتریج 737.
+    این تابع اجازه می‌دهد نام واقعی ذخیره شود.
+    """
+    ensure_yield_tables()
+    color = (color or "black").lower()
+    override_name = (override_name or "").strip()
+    with db_connection(commit=True) as conn:
+        state = _load_state(conn, ip, color)
+        if state is None:
+            return {"error": "cartridge state not found"}
+        state["cartridge_name_override"] = override_name or None
+        # همچنین cartridge_name و cartridge_key را آپدیت کن
+        if override_name:
+            state["cartridge_name"] = override_name
+            state["cartridge_key"] = build_cartridge_key(
+                state.get("printer_model", ""), override_name, color)
+            state["last_cartridge_name"] = override_name
+        state["updated_at"] = _now()
+        _upsert_state(conn, state)
+        profile = _load_profile(conn, state.get("cartridge_key"))
         return _state_public_dict(state, profile)
 
 

@@ -636,3 +636,33 @@ def toner_reset(ip):
     except Exception as e:
         log.exception('toner_reset failed for %s', ip)
         return jsonify({"error": "internal server error"}), 500
+
+
+@bp.route('/api/printer/<path:ip>/cartridge_name_override', methods=['POST'])
+def cartridge_name_override(ip):
+    """تنظیم نام دستی کارتریج برای پرینترهایی که SNMP نام اشتباه برمیگردانند.
+    مثلاً Canon MF220 همیشه 'Cartridge 137' برمیگرداند حتی با کارتریج 737.
+    """
+    try:
+        if not user_can_access_office(current_user, ip):
+            return jsonify({"error": "forbidden"}), 403
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "invalid JSON body"}), 400
+
+        color = (data.get('color') or '').strip().lower()
+        if not color:
+            return jsonify({"error": "color required"}), 400
+
+        override_name = (data.get('name') or '').strip()
+
+        from core.yield_engine import set_cartridge_name_override
+        result = set_cartridge_name_override(ip, color, override_name)
+        if 'error' in result:
+            return jsonify(result), 400
+
+        return jsonify({'status': 'ok', 'cartridge_name': result.get('last_cartridge_name', override_name)})
+    except Exception as e:
+        log.exception('cartridge_name_override failed for %s', ip)
+        return jsonify({"error": "internal server error"}), 500

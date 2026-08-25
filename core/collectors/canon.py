@@ -9,6 +9,28 @@ from datetime import datetime
 
 from core.snmp.protocol import snmp_get_with_fallback
 from core.collectors.base import si, ss, _counters_event
+
+
+# ─── نام دقیق کارتریج‌های Canon (fallback) ───
+_CANON_CARTRIDGE_NAMES = {
+    '055': 'Canon 055 Black',
+    '055h': 'Canon 055H Black',
+    '055c': 'Canon 055 Cyan',
+    '055m': 'Canon 055 Magenta',
+    '055y': 'Canon 055 Yellow',
+    'c-exv33': 'Canon C-EXV33 Black',
+    'c-exv40': 'Canon C-EXV40 Black',
+    '737': 'Canon Cartridge 737 Black',
+    '731': 'Canon Cartridge 731 Black',
+}
+
+def _canon_resolve_cartridge_name(oid_name: str, toner_key: str) -> str:
+    if oid_name:
+        norm = oid_name.lower().replace(' ', '')
+        for pattern, display in _CANON_CARTRIDGE_NAMES.items():
+            if pattern in norm:
+                return display
+    return oid_name or ('Black Toner' if toner_key == 'black' else f'{toner_key.title()} Toner')
 from core import store
 
 log = logging.getLogger("PrinterMonitor")

@@ -7,6 +7,32 @@ from core import store
 log = logging.getLogger("PrinterMonitor")
 
 
+# ─── نام دقیق کارتریج‌های Brother (fallback) ───
+_BROTHER_CARTRIDGE_NAMES = {
+    'tn-3480': 'Brother TN-3480 Black',
+    'tn-3430': 'Brother TN-3430 Black',
+    'tn-2420': 'Brother TN-2420 Black',
+    'tn-2421': 'Brother TN-2421 Black',
+    'tn-2280': 'Brother TN-2280 Black',
+    'tn-2275': 'Brother TN-2275 Black',
+    'tn-2060': 'Brother TN-2060 Black',
+    'tn-6600': 'Brother TN-6600 Black',
+    'tn-6605': 'Brother TN-6605 Black',
+    'tn-3280': 'Brother TN-3280 Black',
+    'dr-3200': 'Brother DR-3200 Drum',
+    'dr-2225': 'Brother DR-2225 Drum',
+    'dr-2200': 'Brother DR-2200 Drum',
+}
+
+def _brother_resolve_cartridge_name(oid_name: str, toner_key: str) -> str:
+    if oid_name:
+        norm = oid_name.lower().replace(' ', '')
+        for pattern, display in _BROTHER_CARTRIDGE_NAMES.items():
+            if pattern in norm:
+                return display
+    return oid_name or ('Black Toner' if toner_key == 'black' else f'{toner_key.title()} Toner')
+
+
 def _scrape_brother_toners(ip: str, timeout: float = 4.0):
     """استخراج درصد تونر/درام از پنل وب Brother (EWS) — fallback برای وقتی SNMP
     درصد نمی‌دهد (مثل خانواده‌ی NC-8300h که در جدول مصرفی‌ها level=-3 برمی‌گرداند).
